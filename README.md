@@ -8,7 +8,7 @@ Install by downloading this repo as zip and install through Blender's settings.
 
 ## Setup
 
-After installing this addon and you want to create a new level or prefab sets, you first need to set the the project root, click the folder icon on the `Project Root:` text box to set the location to the root of WickedEngine-Demo repository folder.
+After installing this addon and you want to create a new level or prefab sets, you first need to set the project root, click the folder icon on the `Project Root:` text box to set the location to the root of WickedEngine-Demo repository folder.
 
 Make sure you've built the softwares in WickedEngine-Demo repository folder to fully utilize this editor environment.
 
