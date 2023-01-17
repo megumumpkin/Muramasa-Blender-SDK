@@ -69,10 +69,10 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
         gltf2_object.extensions = {}
     extdata_build = {}
 
-    if blender_object.instance_collection is not None:
+    if blender_object["redline_temp_instance_collection"] is not None:
         file_base = bpy.context.blend_data.filepath
-        if blender_object.instance_collection.library is not None:
-            file_base = bpy.path.abspath("//") + blender_object.instance_collection.library.filepath
+        if blender_object["redline_temp_instance_collection"].library is not None:
+            file_base = bpy.path.abspath("//") + blender_object["redline_temp_instance_collection"].library.filepath
 
         project_root = os.path.realpath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
         content_root = project_root+"/Data/Content"
@@ -80,12 +80,12 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
         file_base = os.path.relpath(file_base, content_root)
 
         file_prefab = file_base
-        if blender_object.instance_collection.name != "MAIN":
-            file_prefab += "_"+blender_object.instance_collection.name
+        if blender_object["redline_temp_instance_collection"].name != "MAIN":
+            file_prefab += "_"+blender_object["redline_temp_instance_collection"].name
         file_prefab = file_prefab+".wiscene"
         
         extdata_build["prefab"]={
-            "file": file_prefab,
+            "file": "content/" + file_prefab,
             "copy_mode": blender_object.redline_prefab_instance.copy_mode,
             "stream_mode": blender_object.redline_prefab_instance.stream_mode
         }
