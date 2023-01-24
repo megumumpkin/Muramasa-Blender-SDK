@@ -2,6 +2,7 @@ import bpy
 import os
 import sys
 import subprocess
+import numpy
 from bpy.types import Operator
 
 class REDLINE_INTERLINK_OT_updateasset(Operator):
@@ -43,10 +44,18 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
                 if not os.path.exists(file_collection):
                     os.mkdir(file_collection)
                 
-                # 2. Select which object to be get selected, cannot use context override, because the GLTF addon does not support that
+                # 2. Select which object to be exported (on the main context), cannot use context override, because the GLTF addon does not support that
                 print("Exporting> "+file_collection)
                 context_restore = bpy.context.copy()
-                bpy.ops.object.select_all(action='DESELECT')
+                # Fix visibility
+                visibility_restore_list = []
+                for sub_collection in i_collection.children_recursive:
+                    if sub_collection.hide_viewport is True:
+                        visibility_restore_list.append(sub_collection)
+                        sub_collection.hide_viewport = False
+                # Select object and setup prefab instance
+                for i_object in bpy.data.objects:
+                    i_object.select_set(False)
                 prefab_instance_restore_list = []
                 for i_object in i_collection.all_objects:
                     # 2b. If object is a collection instance, do swap the instance type to none from collection!
@@ -55,6 +64,46 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
                         i_object.instance_type = 'NONE'
                         i_object["redline_temp_instance_collection"] = i_object.instance_collection
                         i_object.instance_collection = None
+
+                    # 2c. Check if object is a mesh and then check if it has specific vertex groups
+                    if i_object.data is not None:
+                        if 'redline_mesh' in i_object.data:
+                            for vg in i_object.vertex_groups:
+                                # print(weights)
+                                # Pass vertex group VG_SOFTBODY to attribute SOFTBODY
+                                if vg.name == "VG_SOFTBODY":
+                                    if 'SOFTBODY' in i_object.data.attributes:
+                                        i_object.data.attributes.remove(i_object.data.attributes['SOFTBODY'])
+                                    i_object.data.attributes.new(name='SOFTBODY', type='FLOAT', domain='POINT')
+                                    data_work = numpy.array(numpy.zeros(len(i_object.data.vertices), dtype=numpy.float32))
+                                    for vtp_i in range(len(i_object.data.vertices)):
+                                        data_work[vtp_i] = 1.0+(vg.weight(vtp_i)*-1.0)
+                                    i_object.data.attributes['SOFTBODY'].data.foreach_set('value',data_work)
+
+                                # Pass vertex group VG_WIND to attribute WIND
+                                if vg.name == "VG_WIND":
+                                    if 'WIND' in i_object.data.attributes:
+                                        i_object.data.attributes.remove(i_object.data.attributes['WIND'])
+                                    i_object.data.attributes.new(name='WIND', type='FLOAT', domain='POINT')
+                                    data_work = numpy.array(numpy.zeros(len(i_object.data.vertices), dtype=numpy.float32))
+                                    for vtp_i in range(len(i_object.data.vertices)):
+                                        data_work[vtp_i] = vg.weight(vtp_i)
+                                    i_object.data.attributes['WIND'].data.foreach_set('value',data_work)
+
+                            # Pass vertex group for hairparticles to attribute HAIRPARTICLE_entityname
+                            for pfx in i_object.particle_systems:
+                                if pfx.settings.type == 'HAIR':
+                                    if pfx.vertex_group_length != "":
+                                        vg = i_object.vertex_groups[pfx.vertex_group_length]
+                                        attrname = 'HAIRVGL_'+i_object.name+"_"+pfx.name
+                                        if attrname in i_object.data.attributes:
+                                            i_object.data.attributes.remove(i_object.data.attributes[attrname])
+                                        i_object.data.attributes.new(name=attrname, type='FLOAT', domain='POINT')
+                                        data_work = numpy.array(numpy.zeros(len(i_object.data.vertices), dtype=numpy.float32))
+                                        for vtp_i in range(len(i_object.data.vertices)):
+                                            data_work[vtp_i] = 1.0+(vg.weight(vtp_i)*-1.0)
+                                        i_object.data.attributes[attrname].data.foreach_set('value',data_work)
+                    
                     i_object.select_set(True)
                     
                 # 3. Export GLTF
@@ -68,17 +117,21 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
                     export_animations=True,
                     export_skins=True,
                     export_morph=True,
-                    export_lights=True
+                    export_lights=True,
+                    export_attributes=True
                 )
 
                 # 4. Restore scene data
-                bpy.ops.object.select_all(action='DESELECT')
+                for i_object in bpy.data.objects:
+                    i_object.select_set(False)
                 for i_object in context_restore['selected_objects']:
                     i_object.select_set(True)
                 for i_list in prefab_instance_restore_list:
                     i_list["object"].instance_type = 'COLLECTION'
                     i_list["object"].instance_collection = i_list["instance_collection"]
                     del i_list["object"]["redline_temp_instance_collection"]
+                for sub_collection in visibility_restore_list:
+                    sub_collection.hide_viewport = True
 
                 # 5. Execute import to engine, wait for completion
                 if defer_import is not True:

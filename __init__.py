@@ -59,3 +59,7 @@ class glTF2ExportUserExtension:
     def gather_joint_hook(self, gltf2_node, blender_bone, export_settings):
         if self.properties.enabled:
             gltf_ext_assetsmith.gather_joint_hook(self, gltf2_node, blender_bone, export_settings)
+
+    def gather_material_hook(self, gltf2_material, blender_material, export_settings):
+        if self.properties.enabled:
+            gltf_ext_assetsmith.gather_material_hook(self, gltf2_material, blender_material, export_settings)

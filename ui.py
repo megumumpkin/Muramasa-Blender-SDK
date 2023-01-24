@@ -48,15 +48,69 @@ class REDLINE_INTERLINK_PT_properties_object_panel(Panel):
             object_panel.prop(bpy.context.object.redline_object, "emissive_color")
             object_panel.prop(bpy.context.object.redline_object, "shadow_cascade_mask")
 
+            layout.prop(bpy.context.object.redline_layer, "is_set")
+            if bpy.context.object.redline_layer.is_set is True:
+                layer_panel = layout.box()
+                layer_panel.label(text="Layer Mask")
+                layer_panel.prop(bpy.context.object.redline_layer,"mask")
+
             layout.prop(bpy.context.object.redline_decal, "is_set", text="Is Decal")
             if bpy.context.object.redline_decal.is_set is True:
                 decal_panel = layout.box()
                 decal_panel.label(text="Decal")
                 decal_panel.prop(bpy.context.object.redline_decal,"material")
 
+            layout.prop(bpy.context.object.redline_emitter, "is_set", text="Is Emitter")
+            if bpy.context.object.redline_emitter.is_set is True:
+                emitter_panel = layout.box()
+                emitter_panel.label(text="Emitter")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"material")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"shadertype")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"size")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"random_factor")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"normal_factor")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"count")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"life")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"random_life")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"scale")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"rotation")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"motion_blur_amount")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"mass")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"random_color")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"velocity")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"gravity")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"drag")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"restitution")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"sph_h")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"sph_K")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"sph_p0")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"sph_e")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"sprite_frames")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"sprite_framecount")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"sprite_framestart")
+                emitter_panel.prop(bpy.context.object.redline_emitter,"sprite_framerate")
+
             script_panel = layout.box()
             script_panel.label(text="Script")
             script_panel.prop(bpy.context.object, "redline_script", text="Script File")
+
+class REDLINE_INTERLINK_PT_properties_material_panel(Panel):
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "material"
+    bl_label = "Redline Material Data"
+    bl_category = "Redline Devtool"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(bpy.context.material.redline_material, "shadow_cast")
+        layout.prop(bpy.context.material.redline_material, "use_vertex_colors")
+        layout.prop(bpy.context.material.redline_material, "workflow_specgloss")
+        layout.prop(bpy.context.material.redline_material, "occlussion_primary")
+        layout.prop(bpy.context.material.redline_material, "occlustion_secondary")
+        layout.prop(bpy.context.material.redline_material, "use_wind")
+        layout.prop(bpy.context.material.redline_material, "shadow_noreceive")
+        layout.prop(bpy.context.material.redline_material, "outline")
 
 class REDLINE_INTERLINK_PT_properties_obdata_panel(Panel):
     bl_space_type = "PROPERTIES"
@@ -96,12 +150,28 @@ class REDLINE_INTERLINK_PT_properties_physics_panel(Panel):
             collider_panel.prop(bpy.context.object.redline_collider, "set_CPU_enabled")
             collider_panel.prop(bpy.context.object.redline_collider, "set_GPU_enabled")
 
+class REDLINE_INTERLINK_PT_properties_particle_panel(Panel):
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "particle"
+    bl_label = "Redline VFX Data"
+    bl_category = "Redline Devtool"
+
+    def draw(self, context):
+        layout = self.layout
+        if bpy.context.particle_system.settings.type == 'HAIR':
+            hpfs_panel = layout.box()
+            hpfs_panel.label(text="Hair Particle Data")
+            hpfs_panel.prop(bpy.context.particle_system.settings, "redline_hairparticle_distance")
+
 classes = (
     REDLINE_INTERLINK_PT_panel,
     REDLINE_INTERLINK_PT_properties_collection_panel,
     REDLINE_INTERLINK_PT_properties_object_panel,
+    REDLINE_INTERLINK_PT_properties_material_panel,
     REDLINE_INTERLINK_PT_properties_obdata_panel,
-    REDLINE_INTERLINK_PT_properties_physics_panel
+    REDLINE_INTERLINK_PT_properties_physics_panel,
+    REDLINE_INTERLINK_PT_properties_particle_panel
 )
 
 def register():
