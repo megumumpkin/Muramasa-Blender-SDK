@@ -18,9 +18,9 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
         print("REDLINE ASSET EXPORT START")
         
         file_base = bpy.context.blend_data.filepath
-        project_root = os.path.realpath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
+        project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
         content_root = project_root+"/Data/Content"
-        binary_root = project_root+"/build"
+        binary_root = project_root
         file_base = file_base[:len(file_base)-6]
 
         import_main = False
@@ -118,7 +118,8 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
                     export_skins=True,
                     export_morph=True,
                     export_lights=True,
-                    export_attributes=True
+                    export_attributes=True,
+                    export_apply=True
                 )
 
                 # 4. Restore scene data
@@ -164,9 +165,9 @@ class REDLINE_INTERLINK_OT_previewasset(Operator):
 
     def execute(self, context):
         file_base = bpy.context.blend_data.filepath
-        project_root = os.path.realpath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
+        project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
         content_root = project_root+"/Data/Content"
-        binary_root = project_root+"/build"
+        binary_root = project_root
         file_base = file_base[:len(file_base)-6]
 
         exe_name = "./Dev"

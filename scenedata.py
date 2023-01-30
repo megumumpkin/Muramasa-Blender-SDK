@@ -64,6 +64,24 @@ class RedlineMaterial(bpy.types.PropertyGroup):
     shadow_noreceive : bpy.props.BoolProperty(name="Don't Receive Shadow", default=False)
     outline : bpy.props.BoolProperty(name="Enable Outline", default=False)
 
+    shading_rate : bpy.props.EnumProperty(
+        name="Shading Rate",
+        description = "Set pixel fill rate for the material",
+        items=[
+            ("1X1","1x1",""),
+            ("1X2","1x2",""),
+            ("2X1","2x1",""),
+            ("2X2","2x2",""),
+            ("2X4","2x4",""),
+            ("4X2","4x2",""),
+            ("4x4","4x4","")
+        ]
+    )
+
+    tex_anim_dir : bpy.props.FloatVectorProperty(name="Texture Scroll Direction", size=2)
+    tex_anim_framerate : bpy.props.FloatProperty(name="Texture Scroll Framerate", min=0.0)
+    tex_anim_elapsedtime : bpy.props.FloatProperty(name="Texture Scroll Rate", min=0.0)
+
 class RedlineCollider(bpy.types.PropertyGroup):
     is_set : bpy.props.BoolProperty(name="Use Collider", default=False)
     shape : bpy.props.EnumProperty(

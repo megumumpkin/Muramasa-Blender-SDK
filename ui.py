@@ -112,6 +112,12 @@ class REDLINE_INTERLINK_PT_properties_material_panel(Panel):
         layout.prop(bpy.context.material.redline_material, "shadow_noreceive")
         layout.prop(bpy.context.material.redline_material, "outline")
 
+        layout.prop(bpy.context.material.redline_material, "shading_rate")
+
+        layout.prop(bpy.context.material.redline_material, "tex_anim_dir")
+        layout.prop(bpy.context.material.redline_material, "tex_anim_framerate")
+        layout.prop(bpy.context.material.redline_material, "tex_anim_elapsedtime")
+
 class REDLINE_INTERLINK_PT_properties_obdata_panel(Panel):
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"

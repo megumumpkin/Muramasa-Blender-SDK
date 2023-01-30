@@ -86,12 +86,21 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
     extdata_build = {}
 
     if 'redline_temp_instance_collection' in blender_object:
+        # file_base = bpy.context.blend_data.filepath
+        # if blender_object["redline_temp_instance_collection"].library is not None:
+        #     file_base = bpy.path.abspath("//") + blender_object["redline_temp_instance_collection"].library.filepath
+
+        # project_root = os.path.realpath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
+        # content_root = project_root+"/Data/Content"
+        # file_base = file_base[:len(file_base)-6]
+        # file_base = os.path.relpath(file_base, content_root)
+
         file_base = bpy.context.blend_data.filepath
         if blender_object["redline_temp_instance_collection"].library is not None:
             file_base = bpy.path.abspath("//") + blender_object["redline_temp_instance_collection"].library.filepath
-
-        project_root = os.path.realpath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
+        project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
         content_root = project_root+"/Data/Content"
+        binary_root = project_root
         file_base = file_base[:len(file_base)-6]
         file_base = os.path.relpath(file_base, content_root)
 
@@ -140,7 +149,7 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
                         material_get = blender_object.material_slots[pfx.settings.material-1].material.name
                     hpfxlist[blender_object.name+"_"+pfx.name] = {
                         "strand_count":pfx.settings.count,
-                        "segment_count":pfx.settings.hair_step,
+                        "segment_count":pfx.settings.hair_step - 1,
                         "random_seed":pfx.seed,
                         "length":pfx.settings.hair_length,
                         "stiffness":pfx.settings.effect_hair,
@@ -278,7 +287,7 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
     if blender_object.redline_script is not None:
         if blender_object.redline_script:
             file_base = bpy.context.blend_data.filepath
-            project_root = os.path.realpath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
+            project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
             content_root = project_root+"/Data/Content"
             file_script = bpy.path.abspath(blender_object.redline_script)
             file_script = os.path.relpath(file_script, content_root)
@@ -357,10 +366,21 @@ def gather_material_hook(self, gltf2_material, blender_material, export_settings
         if blender_material.redline_material.outline:
             flag_build = flag_build | (1 << 12)
         extdata_build["material_extra"] = {
-            "flags":flag_build
+            "flags":flag_build,
+            "shading_rate":blender_material.redline_material.shading_rate,
+            "tex_anim_dir":[
+                blender_material.redline_material.tex_anim_dir[0],
+                blender_material.redline_material.tex_anim_dir[1]
+            ],
+            "tex_anim_framerate":blender_material.redline_material.tex_anim_framerate,
+            "tex_anim_elapsedtime":blender_material.redline_material.tex_anim_elapsedtime,
         }
     gltf2_material.extensions[glTF_extension_name] = self.Extension(
         name=glTF_extension_name,
         extension=extdata_build,
         required=extension_is_required
     )
+
+#Need to rename the texture name to texture path
+def gather_texture_hook(self, gltf2_texture, blender_shader_sockets, export_settings):
+    gltf2_texture.source.name = gltf2_texture.source.uri
