@@ -1,4 +1,4 @@
-# Muramasa Development Kit
+# Muramasa Blender SDK
 
 A Blender addon for WickedEngine-Demo game development, this turns blender into a game level editor which supports creating common types of components that exists within WickedEngine and this game demo software.
 
