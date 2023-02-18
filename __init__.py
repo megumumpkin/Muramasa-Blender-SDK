@@ -1,15 +1,15 @@
-# Redline interlink, a plugin to initiate asset workflow for redline framework
+# Muramasa interlink, a plugin to initiate asset workflow for muramasa development kit
 
 import bpy
 
 bl_info = {
-    "name" : "Redline Studio",
+    "name" : "Muramasa Development Kit",
     "author" : "megumumpkin",
     "blender" : (3,3,0),
     "version" : (0,0,1),
     "location" : "View3D",
     "warning" : "Plugin is still in development",
-    "category" : "Redline"
+    "category" : "MuramasaDK"
 }
 
 register, unregister = bpy.utils.register_submodule_factory(__package__, (
@@ -27,7 +27,7 @@ def register_panel():
     # This is necessary because the panel is a child of the extensions panel,
     # which may not be registered when we try to register this extension
     try:
-        bpy.utils.register_class(GLTF_PT_REDLINEExtensionPanel)
+        bpy.utils.register_class(GLTF_PT_MURAMASAExtensionPanel)
     except Exception:
         pass
 
@@ -39,7 +39,7 @@ def register_panel():
 def unregister_panel():
     # Since panel is registered on demand, it is possible it is not registered
     try:
-        bpy.utils.unregister_class(GLTF_PT_REDLINEExtensionPanel)
+        bpy.utils.unregister_class(GLTF_PT_MURAMASAExtensionPanel)
     except Exception:
         pass
 
@@ -50,7 +50,7 @@ class glTF2ExportUserExtension:
         # Otherwise, it may fail because the gltf2 may not be loaded yet
         from io_scene_gltf2.io.com.gltf2_io_extensions import Extension
         self.Extension = Extension
-        self.properties = bpy.context.scene.RedlineInterlinkExtensionProperties
+        self.properties = bpy.context.scene.MuramasaInterlinkExtensionProperties
 
     def gather_node_hook(self, gltf2_object, blender_object, export_settings):
         if self.properties.enabled:

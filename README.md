@@ -1,8 +1,10 @@
-# Redline Studio
+# Muramasa Development Kit
 
 A Blender addon for WickedEngine-Demo game development, this turns blender into a game level editor which supports creating common types of components that exists within WickedEngine and this game demo software.
 
 Install by downloading this repo as zip and install through Blender's settings.
+
+The name comes from the blades that are made by Muramasa, the wicked blades.
 
 ![](res/1.png)
 

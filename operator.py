@@ -5,8 +5,8 @@ import subprocess
 import numpy
 from bpy.types import Operator
 
-class REDLINE_INTERLINK_OT_updateasset(Operator):
-    bl_idname = "redline.interlink_op_updateasset"
+class MURAMASA_INTERLINK_OT_updateasset(Operator):
+    bl_idname = "muramasa.interlink_op_updateasset"
     bl_label = "Update Asset"
     bl_description = "Update asset to engine"
 
@@ -15,10 +15,10 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
         return True
 
     def execute(self, context):
-        print("REDLINE ASSET EXPORT START")
+        print("MURAMASA ASSET EXPORT START")
         
         file_base = bpy.context.blend_data.filepath
-        project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
+        project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.muramasa_project_root[2:]))
         content_root = project_root+"/Data/Content"
         binary_root = project_root
         file_base = file_base[:len(file_base)-6]
@@ -30,8 +30,15 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
             exe_name = "Dev.exe"
 
         for i_collection in bpy.context.scene.collection.children:
-            if i_collection.redline_prefab.include is True:
+            if i_collection.muramasa_prefab.include is True:
+                # Prep up
                 defer_import = False
+                context_restore = bpy.context.copy()
+                temp_compose_collection = []
+
+                # Set active context
+                original_active_collection = bpy.context.view_layer.active_layer_collection
+                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[i_collection.name]
 
                 # 1. Set the file name
                 file_collection = file_base
@@ -40,13 +47,27 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
                 else:
                     import_main = True
                     defer_import = True
+                    # Compose other collection to this scene if it has Composite checked as it's node
+                    for checkcomp_collection in bpy.context.scene.collection.children:
+                        if checkcomp_collection.name != "MAIN":
+                            if checkcomp_collection.muramasa_prefab.include is True:
+                                if checkcomp_collection.muramasa_prefab.composite is True:
+                                    print("COMPOSITE>"+checkcomp_collection.name)
+
+                                    comp_object = bpy.data.objects.new(name="RLCOMPOSITE_"+checkcomp_collection.name, object_data=None)
+                                    comp_object["muramasa_temp_instance_collection"] = checkcomp_collection
+                                    comp_object.muramasa_prefab_instance.copy_mode = checkcomp_collection.muramasa_prefab.composite_data.copy_mode
+                                    comp_object.muramasa_prefab_instance.stream_mode = checkcomp_collection.muramasa_prefab.composite_data.stream_mode
+                                    comp_object.muramasa_prefab_instance.bound_mul = checkcomp_collection.muramasa_prefab.composite_data.bound_mul
+
+                                    bpy.context.view_layer.active_layer_collection.collection.objects.link(comp_object)
+                                    temp_compose_collection.append(comp_object)
                 file_collection = file_collection+".assetsmith"
                 if not os.path.exists(file_collection):
                     os.mkdir(file_collection)
                 
                 # 2. Select which object to be exported (on the main context), cannot use context override, because the GLTF addon does not support that
                 print("Exporting> "+file_collection)
-                context_restore = bpy.context.copy()
                 # Fix visibility
                 visibility_restore_list = []
                 for sub_collection in i_collection.children_recursive:
@@ -62,12 +83,12 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
                     if i_object.instance_collection is not None:
                         prefab_instance_restore_list.append({"object" : i_object, "instance_collection" : i_object.instance_collection})
                         i_object.instance_type = 'NONE'
-                        i_object["redline_temp_instance_collection"] = i_object.instance_collection
+                        i_object["muramasa_temp_instance_collection"] = i_object.instance_collection
                         i_object.instance_collection = None
 
                     # 2c. Check if object is a mesh and then check if it has specific vertex groups
                     if i_object.data is not None:
-                        if 'redline_mesh' in i_object.data:
+                        if 'muramasa_mesh' in i_object.data:
                             for vg in i_object.vertex_groups:
                                 # print(weights)
                                 # Pass vertex group VG_SOFTBODY to attribute SOFTBODY
@@ -105,6 +126,7 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
                                         i_object.data.attributes[attrname].data.foreach_set('value',data_work)
                     
                     i_object.select_set(True)
+                    print(i_object.name)
                     
                 # 3. Export GLTF
                 # Use the one that keeps textures in place, which will export binary separately too, sadly
@@ -130,9 +152,13 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
                 for i_list in prefab_instance_restore_list:
                     i_list["object"].instance_type = 'COLLECTION'
                     i_list["object"].instance_collection = i_list["instance_collection"]
-                    del i_list["object"]["redline_temp_instance_collection"]
+                    del i_list["object"]["muramasa_temp_instance_collection"]
                 for sub_collection in visibility_restore_list:
                     sub_collection.hide_viewport = True
+                for comp_object in temp_compose_collection:
+                    bpy.data.objects.remove(comp_object, do_unlink=True, do_id_user=True, do_ui_user=True)
+                bpy.context.view_layer.active_layer_collection = original_active_collection
+                
 
                 # 5. Execute import to engine, wait for completion
                 if defer_import is not True:
@@ -147,25 +173,25 @@ class REDLINE_INTERLINK_OT_updateasset(Operator):
                 cwd=binary_root
             )
                 
-        print("REDLINE ASSET EXPORT END")
+        print("MURAMASA ASSET EXPORT END")
         print("")
         return {'FINISHED'}
 
-class REDLINE_INTERLINK_OT_previewasset(Operator):
-    bl_idname = "redline.interlink_op_previewasset"
+class MURAMASA_INTERLINK_OT_previewasset(Operator):
+    bl_idname = "muramasa.interlink_op_previewasset"
     bl_label = "Preview Asset"
     bl_description = "Preview asset by running the engine"
 
     @classmethod
     def poll(cls, context):
         if context.collection is not None:
-            if context.collection.redline_prefab is not None:
-                if context.collection.redline_prefab.include is True:
+            if context.collection.muramasa_prefab is not None:
+                if context.collection.muramasa_prefab.include is True:
                     return True
 
     def execute(self, context):
         file_base = bpy.context.blend_data.filepath
-        project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.redline_project_root[2:]))
+        project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.muramasa_project_root[2:]))
         content_root = project_root+"/Data/Content"
         binary_root = project_root
         file_base = file_base[:len(file_base)-6]
@@ -190,8 +216,8 @@ class REDLINE_INTERLINK_OT_previewasset(Operator):
         return {'FINISHED'}
 
 classes = (
-    REDLINE_INTERLINK_OT_updateasset,
-    REDLINE_INTERLINK_OT_previewasset
+    MURAMASA_INTERLINK_OT_updateasset,
+    MURAMASA_INTERLINK_OT_previewasset
 )
 
 def register():
