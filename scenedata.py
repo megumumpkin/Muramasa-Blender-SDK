@@ -2,6 +2,7 @@ import bpy
 from bpy.app.handlers import persistent
 
 class MuramasaPrefabInstance(bpy.types.PropertyGroup):
+    override : bpy.props.BoolProperty(name="Override Instancing Defaults", default=False)
     copy_mode : bpy.props.EnumProperty(
         name="Copy Mode",
         description = "How will the prefab be loaded",
@@ -25,15 +26,24 @@ class MuramasaPrefabInstance(bpy.types.PropertyGroup):
 class MuramasaPrefab(bpy.types.PropertyGroup):
     include : bpy.props.BoolProperty(name="Include in Export", default=False)
     composite : bpy.props.BoolProperty(name="Composite to Main Scene", default=False)
+    is_main : bpy.props.BoolProperty(name="Set This Collection As The Main Scene", default=False)
     composite_data : bpy.props.PointerProperty(type=MuramasaPrefabInstance)
 
 class MuramasaObject(bpy.types.PropertyGroup):
+    #flags
     renderable : bpy.props.BoolProperty(name="Renderable", default=True)
     cast_shadow : bpy.props.BoolProperty(name="Cast Shadow", default=True)
     dynamic : bpy.props.BoolProperty(name="Dynamic", default=True)
     request_planar_reflection : bpy.props.BoolProperty(name="Request Planar Reflection", default=False)
+    
     emissive_color : bpy.props.FloatVectorProperty(name="Emissive Color", subtype='COLOR', size=4)
     shadow_cascade_mask : bpy.props.BoolVectorProperty(name="Shadow Cascade Mask", subtype='LAYER', size=32)
+
+    #filter masks
+    filter_opaque : bpy.props.BoolProperty(name="Opaque", default=False)
+    filter_transparent : bpy.props.BoolProperty(name="Transparent", default=False)
+    filter_water : bpy.props.BoolProperty(name="Water", default=False)
+    filter_navigation_mesh : bpy.props.BoolProperty(name="Navigation Mesh", default=False)
 
 class MuramasaLayer(bpy.types.PropertyGroup):
     is_set : bpy.props.BoolProperty(name="Use Layer Mask", default=False)
@@ -45,6 +55,14 @@ class MuramasaLayer(bpy.types.PropertyGroup):
     ))
 
 class MuramasaMesh(bpy.types.PropertyGroup):
+    #flags
+    renderable : bpy.props.BoolProperty(name="Renderable", default=True)
+    double_sided : bpy.props.BoolProperty(name="Double Sided", default=False)
+    dynamic : bpy.props.BoolProperty(name="Dynamic", default=False)
+    tlas_force_double_sided : bpy.props.BoolProperty(name="TLAS Force Double Sided", default=False)
+    double_sided_shadow : bpy.props.BoolProperty(name="Double Sided Shadow", default=False)
+    bvh_enabled : bpy.props.BoolProperty(name="Enable BVH Traversal (for collision test)", default=False)
+
     lod_mode : bpy.props.EnumProperty(
         name="LOD Mode",
         description = "How will the prefab be loaded",
@@ -56,6 +74,7 @@ class MuramasaMesh(bpy.types.PropertyGroup):
     )
 
 class MuramasaMaterial(bpy.types.PropertyGroup):
+    #flags
     shadow_cast : bpy.props.BoolProperty(name="Cast Shadow", default=True)
     use_vertex_colors : bpy.props.BoolProperty(name="Use Vertex Colors", default=False)
     workflow_specgloss : bpy.props.BoolProperty(name="Specular Glossiness Workflow", default=False)
@@ -103,10 +122,12 @@ class MuramasaCollider(bpy.types.PropertyGroup):
 class MuramasaDecal(bpy.types.PropertyGroup):
     is_set : bpy.props.BoolProperty(name="Use Decal", default=False)
     material : bpy.props.PointerProperty(name="Material", type=bpy.types.Material)
+    base_color_only_alpha : bpy.props.BoolProperty(name="Use BaseColor's Alpha Only", default=False)
 
 class MuramasaEmitter(bpy.types.PropertyGroup):
     is_set : bpy.props.BoolProperty(name="Use Emitter", default=False)
     material : bpy.props.PointerProperty(name="Material", type=bpy.types.Material)
+    mesh : bpy.props.PointerProperty(name="Material", type=bpy.types.Mesh)
     shadertype : bpy.props.EnumProperty(
         name="Shader Type",
         description = "Which type of shader to be used in runtime",
@@ -141,6 +162,24 @@ class MuramasaEmitter(bpy.types.PropertyGroup):
     sprite_framestart : bpy.props.IntProperty(name="Spritesheet Starting Frame", default=0, min=0)
     sprite_framerate : bpy.props.FloatProperty(name="Spritesheet Animation Frame Rate", default=0, min=0)
 
+class MuramasaSpring(bpy.types.PropertyGroup):
+    is_set : bpy.props.BoolProperty(name="Use Spring", default=False)
+    enable_stretch : bpy.props.BoolProperty(name="Enable Stretching", default=False)
+    enable_gravity : bpy.props.BoolProperty(name="Enable Gravity", default=True)
+    stiffness_force : bpy.props.FloatProperty(name="Stiffness Force", default=0.5)
+    drag_force : bpy.props.FloatProperty(name="Drag Force", default=0.5)
+    wind_force : bpy.props.FloatProperty(name="Wind Force", default=0.5)
+    hit_radius : bpy.props.FloatProperty(name="Hit Radius", default=0)
+    gravity_power : bpy.props.FloatProperty(name="Gravity Power", default=0.5)
+    gravity_dir : bpy.props.FloatVectorProperty(name="Gravity Direction", default=(0.0, 0.0, 0.0))
+
+class MuramasaLight(bpy.types.PropertyGroup):
+    is_volumetric : bpy.props.BoolProperty(name="Is Volumetric", default=False)
+    cast_volume_cloud : bpy.props.BoolProperty(name="Cast Volumetric Cloud Shadows", default=False)
+    cascade_distances : bpy.props.FloatVectorProperty(name="Shadow Cascade Distances", size=6, default=(8.0,80.0,800.0,0.0,0.0,0.0))
+
+class MuramasaAction(bpy.types.PropertyGroup):
+    autoplay : bpy.props.BoolProperty(name="Autoplay This Action", default=False)
 
 classes = (
     MuramasaPrefabInstance,
@@ -151,7 +190,10 @@ classes = (
     MuramasaMesh,
     MuramasaCollider,
     MuramasaDecal,
-    MuramasaEmitter
+    MuramasaEmitter,
+    MuramasaSpring,
+    MuramasaLight,
+    MuramasaAction
 )
 
 
@@ -171,6 +213,9 @@ def register():
     bpy.types.Object.muramasa_decal = bpy.props.PointerProperty(type=MuramasaDecal, options={'HIDDEN'})
     bpy.types.Object.muramasa_emitter = bpy.props.PointerProperty(type=MuramasaEmitter, options={'HIDDEN'})
     bpy.types.Object.muramasa_rb_extents = bpy.props.FloatVectorProperty(name="Collider Extents", default=(1.0, 1.0, 1.0), options={'HIDDEN'})
+    bpy.types.Light.muramasa_light = bpy.props.PointerProperty(type=MuramasaLight, options={'HIDDEN'})
+    bpy.types.Bone.muramasa_spring = bpy.props.PointerProperty(type=MuramasaSpring, options={'HIDDEN'})
+    bpy.types.Action.muramasa_action = bpy.props.PointerProperty(type=MuramasaAction, options={'HIDDEN'})
     
     bpy.types.Collection.muramasa_prefab = bpy.props.PointerProperty(type=MuramasaPrefab, options={'HIDDEN'})
     bpy.types.Object.muramasa_prefab_instance = bpy.props.PointerProperty(type=MuramasaPrefabInstance, options={'HIDDEN'})
@@ -189,6 +234,9 @@ def unregister():
     del bpy.types.Object.muramasa_decal
     del bpy.types.Object.muramasa_emitter
     del bpy.types.Object.muramasa_rb_extents
+    del bpy.types.Light.muramasa_light
+    del bpy.types.Bone.muramasa_spring
+    del bpy.types.Action.muramasa_action
 
     del bpy.types.Collection.muramasa_prefab
     del bpy.types.Object.muramasa_prefab_instance

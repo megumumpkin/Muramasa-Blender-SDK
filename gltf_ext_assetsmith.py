@@ -95,29 +95,39 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
         # file_base = file_base[:len(file_base)-6]
         # file_base = os.path.relpath(file_base, content_root)
 
-        file_base = bpy.context.blend_data.filepath
-        if blender_object["muramasa_temp_instance_collection"].library is not None:
-            file_base = bpy.path.abspath("//") + blender_object["muramasa_temp_instance_collection"].library.filepath
+        file_base = bpy.path.abspath("//")
         project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.muramasa_project_root[2:]))
         content_root = project_root+"/Data/Content"
         binary_root = project_root
-        file_base = file_base[:len(file_base)-6]
+        if blender_object["muramasa_temp_instance_collection"].library is not None:
+            file_base = bpy.path.abspath(blender_object["muramasa_temp_instance_collection"].library.filepath)
+        else:
+            file_base = bpy.context.blend_data.filepath
         file_base = os.path.relpath(file_base, content_root)
+        file_base = file_base[:len(file_base)-6]
 
         file_prefab = file_base
-        if blender_object["muramasa_temp_instance_collection"].name != "MAIN":
+        if blender_object["muramasa_temp_instance_collection"].muramasa_prefab.is_main is False:
             file_prefab += "_"+blender_object["muramasa_temp_instance_collection"].name
         file_prefab = file_prefab+".wiscene"
-        
-        extdata_build["prefab"]={
-            "file": "content/" + file_prefab,
-            "copy_mode": blender_object.muramasa_prefab_instance.copy_mode,
-            "stream_mode": blender_object.muramasa_prefab_instance.stream_mode,
-            "stream_distance_multiplier": blender_object.muramasa_prefab_instance.bound_mul
-        }
+
+        if blender_object.muramasa_prefab_instance.override is True:
+            extdata_build["prefab"]={
+                "file": "content/" + file_prefab,
+                "copy_mode": blender_object.muramasa_prefab_instance.copy_mode,
+                "stream_mode": blender_object.muramasa_prefab_instance.stream_mode,
+                "stream_distance_multiplier": blender_object.muramasa_prefab_instance.bound_mul
+            }
+        else:
+            extdata_build["prefab"]={
+                "file": "content/" + file_prefab,
+                "copy_mode": blender_object["muramasa_temp_instance_collection"].muramasa_prefab.composite_data.copy_mode,
+                "stream_mode": blender_object["muramasa_temp_instance_collection"].muramasa_prefab.composite_data.stream_mode,
+                "stream_distance_multiplier": blender_object["muramasa_temp_instance_collection"].muramasa_prefab.composite_data.bound_mul
+            }
 
     if blender_object.data is not None:
-        if 'muramasa_mesh' in blender_object.data:
+        if isinstance(blender_object.data, bpy.types.Mesh):
             flag_build = 0
             if blender_object.muramasa_object.renderable:
                 flag_build = flag_build | (1 << 0)
@@ -131,8 +141,18 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
             for i in range(32):
                 if blender_object.muramasa_object.shadow_cascade_mask[i] is True:
                     shc_mask_build = shc_mask_build | (1 << i)
+            filter_mask_build = 0
+            if blender_object.muramasa_object.filter_opaque:
+                filter_mask_build = filter_mask_build | (1 << 0)
+            if blender_object.muramasa_object.filter_transparent:
+                filter_mask_build = filter_mask_build | (1 << 1)
+            if blender_object.muramasa_object.filter_water:
+                filter_mask_build = filter_mask_build | (1 << 2)
+            if blender_object.muramasa_object.filter_navigation_mesh:
+                filter_mask_build = filter_mask_build | (1 << 3)
             extdata_build["object"]={
                 "flags": flag_build,
+                "filtermask": filter_mask_build,
                 "emissivecolor": [
                     blender_object.muramasa_object.emissive_color[0],
                     blender_object.muramasa_object.emissive_color[1],
@@ -141,6 +161,7 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
                 ],
                 "shadow_cascade_mask": shc_mask_build,
             }
+            
             # Hair particle systems
             hpfxlist = {}
             for pfx in blender_object.particle_systems:
@@ -159,6 +180,25 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
                         "material":material_get
                     }
             extdata_build["hairsettings"]=hpfxlist
+        if isinstance(blender_object.data, bpy.types.Light):
+            flag_build = 0
+            if blender_object.data.muramasa_light.is_volumetric is True:
+                flag_build = flag_build | 1 << 1
+            if blender_object.data.muramasa_light.cast_volume_cloud is True:
+                flag_build = flag_build | 1 << 4
+            if blender_object.data.use_shadow is True:
+                flag_build = flag_build | 1 << 0
+            extdata_build["light"]={
+                "flags":flag_build,
+                "cascade_distances":[
+                    blender_object.data.muramasa_light.cascade_distances[0],
+                    blender_object.data.muramasa_light.cascade_distances[1],
+                    blender_object.data.muramasa_light.cascade_distances[2],
+                    blender_object.data.muramasa_light.cascade_distances[3],
+                    blender_object.data.muramasa_light.cascade_distances[4],
+                    blender_object.data.muramasa_light.cascade_distances[5],
+                ]
+            }
 
     if blender_object.muramasa_layer is not None:
         if blender_object.muramasa_layer.is_set is True:
@@ -238,7 +278,13 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
     if blender_object.muramasa_decal is not None:
         if blender_object.muramasa_decal.is_set is True:
             if blender_object.muramasa_decal.material is not None:
-                extdata_build["decal"]=blender_object.muramasa_decal.material.name # material id in string
+                flag_build = 0
+                if blender_object.muramasa_decal.base_color_only_alpha is True:
+                    flag_build = flag_build | 1<<0
+                extdata_build["decal"]={
+                    "flags": flag_build,
+                    "material": blender_object.muramasa_decal.material.name # material id in string
+                } 
 
     if blender_object.muramasa_emitter is not None:
         if blender_object.muramasa_emitter.is_set is True:
@@ -284,10 +330,12 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
             }
             if blender_object.muramasa_emitter.material is not None:
                 extdata_build["emitter"]["material"] = blender_object.muramasa_emitter.material.name
+            if blender_object.muramasa_emitter.mesh is not None:
+                extdata_build["emitter"]["mesh"] = blender_object.muramasa_emitter.mesh.name
     
     if blender_object.muramasa_script is not None:
         if blender_object.muramasa_script:
-            file_base = bpy.context.blend_data.filepath
+            file_base = bpy.path.abspath("//")
             project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.muramasa_project_root[2:]))
             content_root = project_root+"/Data/Content"
             file_script = bpy.path.abspath(blender_object.muramasa_script)
@@ -328,6 +376,26 @@ def gather_joint_hook(self, gltf2_node, blender_bone, export_settings):
     if gltf2_node.extensions is None:
         gltf2_node.extensions = {}
     extdata_build = {}
+    if blender_bone.bone.muramasa_spring is not None:
+        if blender_bone.bone.muramasa_spring.is_set is True:
+            flag_build = 0
+            if blender_bone.bone.muramasa_spring.enable_stretch is True:
+                flag_build = flag_build | 1 << 2
+            if blender_bone.bone.muramasa_spring.enable_gravity is True:
+                flag_build = flag_build | 1 << 3
+            extdata_build["spring"]={
+                "flags":flag_build,
+                "stiffness_force":blender_bone.bone.muramasa_spring.stiffness_force,
+                "drag_force":blender_bone.bone.muramasa_spring.drag_force,
+                "wind_force":blender_bone.bone.muramasa_spring.wind_force,
+                "hit_radius":blender_bone.bone.muramasa_spring.hit_radius,
+                "gravity_power":blender_bone.bone.muramasa_spring.gravity_power,
+                "gravity_dir":[
+                    blender_bone.bone.muramasa_spring.gravity_dir[0],
+                    blender_bone.bone.muramasa_spring.gravity_dir[1],
+                    blender_bone.bone.muramasa_spring.gravity_dir[2],
+                ]
+            }
     # Check bone constraints and see if it has ik
     # [c for c in bone.constraints if c.type=='COPY_LOCATION']
     for constraint in blender_bone.constraints:
@@ -348,7 +416,7 @@ def gather_material_hook(self, gltf2_material, blender_material, export_settings
     if gltf2_material.extensions is None:
         gltf2_material.extensions = {}
     extdata_build = {}
-    if 'muramasa_material' in blender_material:
+    if blender_material.muramasa_material is not None:
         flag_build = (1 << 0)
         if blender_material.muramasa_material.shadow_cast:
             flag_build = flag_build | (1 << 1)
@@ -385,3 +453,48 @@ def gather_material_hook(self, gltf2_material, blender_material, export_settings
 #Need to rename the texture name to texture path
 def gather_texture_hook(self, gltf2_texture, blender_shader_sockets, export_settings):
     gltf2_texture.source.name = gltf2_texture.source.uri
+
+def gather_mesh_hook(self, gltf2_mesh, blender_mesh, blender_object, vertex_groups, modifiers, materials, export_settings):
+    if gltf2_mesh.extensions is None:
+        gltf2_mesh.extensions = {}
+    extdata_build = {}
+    if blender_mesh.muramasa_mesh is not None:
+        mesh_flag_build = 0
+        if blender_mesh.muramasa_mesh.renderable is True:
+            mesh_flag_build = mesh_flag_build | 1 << 0
+        if blender_mesh.muramasa_mesh.double_sided is True:
+            mesh_flag_build = mesh_flag_build | 1 << 1
+        if blender_mesh.muramasa_mesh.dynamic is True:
+            mesh_flag_build = mesh_flag_build | 1 << 2
+        if blender_mesh.muramasa_mesh.tlas_force_double_sided is True:
+            mesh_flag_build = mesh_flag_build | 1 << 6
+        if blender_mesh.muramasa_mesh.double_sided_shadow is True:
+            mesh_flag_build = mesh_flag_build | 1 << 7
+        if blender_mesh.muramasa_mesh.bvh_enabled is True:
+            mesh_flag_build = mesh_flag_build | 1 << 8
+        extdata_build["mesh"] = {
+            "flags":mesh_flag_build,
+        }
+    gltf2_mesh.extensions[glTF_extension_name] = self.Extension(
+        name=glTF_extension_name,
+        extension=extdata_build,
+        required=extension_is_required
+    )
+
+def gather_animation_hook(self, gltf2_animation, blender_action, blender_object, export_settings):
+    if gltf2_animation.extensions is None:
+        gltf2_animation.extensions = {}
+    extdata_build = {}
+    # Animation properties, e.g. autoplay opt.
+    if blender_action.muramasa_action is not None:
+        animex_flag_build = 0
+        if blender_action.muramasa_action.autoplay is True:
+            animex_flag_build = animex_flag_build | 1 << 0
+        extdata_build["animation_extra"] = {
+            "flags":animex_flag_build,
+        }
+    gltf2_animation.extensions[glTF_extension_name] = self.Extension(
+        name=glTF_extension_name,
+        extension=extdata_build,
+        required=extension_is_required
+    )

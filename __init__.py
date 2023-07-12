@@ -67,3 +67,11 @@ class glTF2ExportUserExtension:
     def gather_texture_hook(self, gltf2_texture, blender_shader_sockets, export_settings):
         if self.properties.enabled:
             gltf_ext_assetsmith.gather_texture_hook(self, gltf2_texture, blender_shader_sockets, export_settings)
+
+    def gather_mesh_hook(self, gltf2_mesh, blender_mesh, blender_object, vertex_groups, modifiers, materials, export_settings):
+        if self.properties.enabled:
+            gltf_ext_assetsmith.gather_mesh_hook(self, gltf2_mesh, blender_mesh, blender_object, vertex_groups, modifiers, materials, export_settings)
+
+    def gather_animation_hook(self, gltf2_animation, blender_action, blender_object, export_settings):
+        if self.properties.enabled:
+            gltf_ext_assetsmith.gather_animation_hook(self, gltf2_animation, blender_action, blender_object, export_settings)

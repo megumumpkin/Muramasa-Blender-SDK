@@ -42,20 +42,21 @@ class MURAMASA_INTERLINK_OT_updateasset(Operator):
 
                 # 1. Set the file name
                 file_collection = file_base
-                if i_collection.name != "MAIN":
+                if i_collection.muramasa_prefab.is_main is False:
                     file_collection += "_"+i_collection.name
                 else:
                     import_main = True
                     defer_import = True
                     # Compose other collection to this scene if it has Composite checked as it's node
                     for checkcomp_collection in bpy.context.scene.collection.children:
-                        if checkcomp_collection.name != "MAIN":
+                        if checkcomp_collection.muramasa_prefab.is_main is False:
                             if checkcomp_collection.muramasa_prefab.include is True:
                                 if checkcomp_collection.muramasa_prefab.composite is True:
                                     print("COMPOSITE>"+checkcomp_collection.name)
 
                                     comp_object = bpy.data.objects.new(name="RLCOMPOSITE_"+checkcomp_collection.name, object_data=None)
                                     comp_object["muramasa_temp_instance_collection"] = checkcomp_collection
+                                    comp_object.muramasa_prefab_instance.override = checkcomp_collection.muramasa_prefab.composite_data.override
                                     comp_object.muramasa_prefab_instance.copy_mode = checkcomp_collection.muramasa_prefab.composite_data.copy_mode
                                     comp_object.muramasa_prefab_instance.stream_mode = checkcomp_collection.muramasa_prefab.composite_data.stream_mode
                                     comp_object.muramasa_prefab_instance.bound_mul = checkcomp_collection.muramasa_prefab.composite_data.bound_mul
@@ -88,7 +89,7 @@ class MURAMASA_INTERLINK_OT_updateasset(Operator):
 
                     # 2c. Check if object is a mesh and then check if it has specific vertex groups
                     if i_object.data is not None:
-                        if 'muramasa_mesh' in i_object.data:
+                        if isinstance(i_object.data, bpy.types.Mesh):
                             for vg in i_object.vertex_groups:
                                 # print(weights)
                                 # Pass vertex group VG_SOFTBODY to attribute SOFTBODY
@@ -136,11 +137,18 @@ class MURAMASA_INTERLINK_OT_updateasset(Operator):
                     export_format='GLTF_SEPARATE',
                     export_keep_originals=True,
                     use_selection=True,
+
+                    # Export animation options for this 
                     export_animations=True,
+                    export_animation_mode='NLA_TRACKS',
+                    export_optimize_animation_keep_anim_armature=False,
+                    export_optimize_animation_keep_anim_object=False,
+
                     export_skins=True,
                     export_morph=True,
                     export_lights=True,
                     export_attributes=True,
+                    export_cameras=True,
                     export_apply=True
                 )
 
@@ -201,7 +209,7 @@ class MURAMASA_INTERLINK_OT_previewasset(Operator):
             exe_name = "Dev.exe"
 
         file_collection = file_base
-        if context.collection.name != "MAIN":
+        if context.collection.muramasa_prefab.is_main is False:
             file_collection += "_"+context.collection.name
         else:
             import_main = True

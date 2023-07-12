@@ -23,13 +23,14 @@ class MURAMASA_INTERLINK_PT_properties_collection_panel(Panel):
     def draw(self, context):
         layout = self.layout
         layout.prop(bpy.context.collection.muramasa_prefab, "include")
+        layout.prop(bpy.context.collection.muramasa_prefab, "is_main")
         layout.prop(bpy.context.collection.muramasa_prefab, "composite")
-        if bpy.context.collection.muramasa_prefab.composite is True:
-            compdata_panel = layout.box()
-            compdata_panel.label(text="Composite Prefab Instance Data")
-            compdata_panel.prop(bpy.context.collection.muramasa_prefab.composite_data, "copy_mode")
-            compdata_panel.prop(bpy.context.collection.muramasa_prefab.composite_data, "stream_mode")
-            compdata_panel.prop(bpy.context.collection.muramasa_prefab.composite_data, "bound_mul")
+        pdata_panel = layout.box()
+        pdata_panel.label(text="Prefab's Default Instancing Data")
+        pdata_panel.prop(bpy.context.collection.muramasa_prefab.composite_data, "copy_mode")
+        pdata_panel.prop(bpy.context.collection.muramasa_prefab.composite_data, "stream_mode")
+        pdata_panel.prop(bpy.context.collection.muramasa_prefab.composite_data, "bound_mul")
+            
 
 class MURAMASA_INTERLINK_PT_properties_object_panel(Panel):
     bl_space_type = "PROPERTIES"
@@ -41,9 +42,15 @@ class MURAMASA_INTERLINK_PT_properties_object_panel(Panel):
     def draw(self, context):
         layout = self.layout
         if bpy.context.object.instance_collection is not None:
-            layout.prop(bpy.context.object.muramasa_prefab_instance, "copy_mode")
-            layout.prop(bpy.context.object.muramasa_prefab_instance, "stream_mode")
-            layout.prop(bpy.context.object.muramasa_prefab_instance, "bound_mul")
+            layout.prop(bpy.context.object.muramasa_prefab_instance, "override")
+            if bpy.context.object.muramasa_prefab_instance.override is True:
+                layout.prop(bpy.context.object.muramasa_prefab_instance, "copy_mode")
+                layout.prop(bpy.context.object.muramasa_prefab_instance, "stream_mode")
+                layout.prop(bpy.context.object.muramasa_prefab_instance, "bound_mul")
+            else:
+                layout.prop(bpy.context.object.instance_collection.muramasa_prefab.composite_data, "copy_mode")
+                layout.prop(bpy.context.object.instance_collection.muramasa_prefab.composite_data, "stream_mode")
+                layout.prop(bpy.context.object.instance_collection.muramasa_prefab.composite_data, "bound_mul")
         else:
             object_panel = layout.box()
             object_panel.label(text="Object")
@@ -53,6 +60,13 @@ class MURAMASA_INTERLINK_PT_properties_object_panel(Panel):
             object_panel.prop(bpy.context.object.muramasa_object, "request_planar_reflection")
             object_panel.prop(bpy.context.object.muramasa_object, "emissive_color")
             object_panel.prop(bpy.context.object.muramasa_object, "shadow_cascade_mask")
+
+            filter_panel = layout.box()
+            filter_panel.label(text="Filters")
+            filter_panel.prop(bpy.context.object.muramasa_object,"filter_opaque")
+            filter_panel.prop(bpy.context.object.muramasa_object,"filter_transparent")
+            filter_panel.prop(bpy.context.object.muramasa_object,"filter_water")
+            filter_panel.prop(bpy.context.object.muramasa_object,"filter_navigation_mesh")
 
             layout.prop(bpy.context.object.muramasa_layer, "is_set")
             if bpy.context.object.muramasa_layer.is_set is True:
@@ -65,12 +79,14 @@ class MURAMASA_INTERLINK_PT_properties_object_panel(Panel):
                 decal_panel = layout.box()
                 decal_panel.label(text="Decal")
                 decal_panel.prop(bpy.context.object.muramasa_decal,"material")
+                decal_panel.prop(bpy.context.object.muramasa_decal,"base_color_only_alpha")
 
             layout.prop(bpy.context.object.muramasa_emitter, "is_set", text="Is Emitter")
             if bpy.context.object.muramasa_emitter.is_set is True:
                 emitter_panel = layout.box()
                 emitter_panel.label(text="Emitter")
                 emitter_panel.prop(bpy.context.object.muramasa_emitter,"material")
+                emitter_panel.prop(bpy.context.object.muramasa_emitter,"mesh")
                 emitter_panel.prop(bpy.context.object.muramasa_emitter,"shadertype")
                 emitter_panel.prop(bpy.context.object.muramasa_emitter,"size")
                 emitter_panel.prop(bpy.context.object.muramasa_emitter,"random_factor")
@@ -133,9 +149,24 @@ class MURAMASA_INTERLINK_PT_properties_obdata_panel(Panel):
 
     def draw(self, context):
         layout = self.layout
-        if bpy.context.object.data.muramasa_mesh is not None:
+        # layout.prop(bpy.context.light.muramasa_light, "cascade_distances")
+        # if 'muramasa_mesh' in bpy.context.object.data is not None:
+        if type(bpy.context.object.data) is bpy.types.Mesh:
             layout.label(text="Mesh Data")
-            layout.prop(bpy.context.mesh.muramasa_mesh, "lod_mode")
+            layout.prop(bpy.context.object.data.muramasa_mesh, "renderable")
+            layout.prop(bpy.context.object.data.muramasa_mesh, "double_sided")
+            layout.prop(bpy.context.object.data.muramasa_mesh, "dynamic")
+            layout.prop(bpy.context.object.data.muramasa_mesh, "tlas_force_double_sided")
+            layout.prop(bpy.context.object.data.muramasa_mesh, "double_sided_shadow")
+            layout.prop(bpy.context.object.data.muramasa_mesh, "bvh_enabled")
+
+            layout.prop(bpy.context.object.data.muramasa_mesh, "lod_mode")
+        if 'muramasa_light' in bpy.context.object.data is not None:
+            layout.label(text="Light Data")
+            layout.prop(bpy.context.light.muramasa_light, "is_volumetric")
+            layout.prop(bpy.context.light.muramasa_light, "cast_volume_cloud")
+            layout.prop(bpy.context.light.muramasa_light, "cascade_distances")
+        
 
 class MURAMASA_INTERLINK_PT_properties_physics_panel(Panel):
     bl_space_type = "PROPERTIES"
@@ -176,6 +207,41 @@ class MURAMASA_INTERLINK_PT_properties_particle_panel(Panel):
             hpfs_panel.label(text="Hair Particle Data")
             hpfs_panel.prop(bpy.context.particle_system.settings, "muramasa_hairparticle_distance")
 
+class MURAMASA_INTERLINK_PT_properties_bone_panel(Panel):
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "bone"
+    bl_label = "Muramasa Bone Data"
+    bl_category = "Muramasa Devtool"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(bpy.context.bone.muramasa_spring, "is_set")
+        if bpy.context.bone.muramasa_spring.is_set is True:
+            spring_panel = layout.box()
+            spring_panel.label(text="Spring Data")
+            spring_panel.prop(bpy.context.bone.muramasa_spring, "enable_stretch")
+            spring_panel.prop(bpy.context.bone.muramasa_spring, "enable_gravity")
+            spring_panel.prop(bpy.context.bone.muramasa_spring, "stiffness_force")
+            spring_panel.prop(bpy.context.bone.muramasa_spring, "drag_force")
+            spring_panel.prop(bpy.context.bone.muramasa_spring, "wind_force")
+            spring_panel.prop(bpy.context.bone.muramasa_spring, "hit_radius")
+            spring_panel.prop(bpy.context.bone.muramasa_spring, "gravity_power")
+            spring_panel.prop(bpy.context.bone.muramasa_spring, "gravity_dir")
+
+class MURAMASA_INTERLINK_PT_properties_anim_panel(Panel):
+    bl_space_type = "DOPESHEET_EDITOR"
+    bl_region_type = "UI"
+    bl_label = "Muramasa Action Data"
+    bl_category = "Muramasa Devtool"
+
+    def draw(self, context):
+        if bpy.context.active_action is not None:
+            layout = self.layout
+            action_panel = layout.box()
+            action_panel.label(text="Action Data")
+            action_panel.prop(bpy.context.active_action.muramasa_action, "autoplay")
+
 classes = (
     MURAMASA_INTERLINK_PT_panel,
     MURAMASA_INTERLINK_PT_properties_collection_panel,
@@ -183,7 +249,9 @@ classes = (
     MURAMASA_INTERLINK_PT_properties_material_panel,
     MURAMASA_INTERLINK_PT_properties_obdata_panel,
     MURAMASA_INTERLINK_PT_properties_physics_panel,
-    MURAMASA_INTERLINK_PT_properties_particle_panel
+    MURAMASA_INTERLINK_PT_properties_particle_panel,
+    MURAMASA_INTERLINK_PT_properties_bone_panel,
+    MURAMASA_INTERLINK_PT_properties_anim_panel
 )
 
 def register():
