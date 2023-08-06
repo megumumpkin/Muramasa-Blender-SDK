@@ -4,7 +4,7 @@ A Blender addon for WickedEngine-Demo game development, this turns blender into 
 
 Install by downloading this repo as zip and install through Blender's settings.
 
-The name comes from the blades that are made by Muramasa, the wicked blades.
+The name comes from the blades that are made by Senji Muramasa, the wicked blades.
 
 ![](res/1.png)
 
@@ -12,7 +12,11 @@ The name comes from the blades that are made by Muramasa, the wicked blades.
 
 After installing this addon and you want to create a new level or prefab sets, you first need to set the project root, click the folder icon on the `Project Root:` text box to set the location to the root of WickedEngine-Demo repository folder.
 
-Make sure you've built the softwares in WickedEngine-Demo repository folder to fully utilize this editor environment.
+Make sure you've built the software in WickedEngine-Demo repository folder to fully utilize this editor environment like the ones below.
+
+![](res/6.png)
+
+![](res/5.png)
 
 ## Prefabbing
 
@@ -34,7 +38,7 @@ Checking `Composite to Main Scene` will automatically make this collection as su
 
 ## What are the components that can be exported to the engine?
 
-* Prefabs
+* Prefabs (Feature that exists within the WickedEngine game demo software)
 * Rigidbody Physics
 * Softbody Physics
 * Physics Constraints
@@ -43,3 +47,6 @@ Checking `Composite to Main Scene` will automatically make this collection as su
 * Cameras(?)
 * Sounds
 * Force Fields
+* Animations (Only what's supported by base GLTF formats for now)
+* Particle Systems
+* Hair Joints

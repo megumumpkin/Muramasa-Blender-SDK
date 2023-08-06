@@ -2,6 +2,7 @@ import bpy
 import os
 from enum import Flag, auto
 import idprop
+import json # For debugging
 
 # glTF extensions are named following a convention with known prefixes.
 # See: https://github.com/KhronosGroup/glTF/tree/master/extensions#about-gltf-extensions
@@ -199,6 +200,11 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
                     blender_object.data.muramasa_light.cascade_distances[5],
                 ]
             }
+            # Fix light level to match wicked
+            # {'color': [1.0, 0.9893096089363098, 0.9576399922370911], 'intensity': 3415.0, 'spot': None, 'type': 'directional', 'range': None, 'name': 'Light', 'extensions': None, 'extras': None}
+            light_data = gltf2_object.extensions["KHR_lights_punctual"].extension["light"].extension
+            light_data["intensity"] = light_data["intensity"] / 683.0
+            print(gltf2_object.extensions["KHR_lights_punctual"].extension["light"].extension["intensity"])
 
     if blender_object.muramasa_layer is not None:
         if blender_object.muramasa_layer.is_set is True:
@@ -349,18 +355,18 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
             print(type(value))
             if isinstance(value, str):
                 if (value == "true") or (value == "false"):
-                    params_build = params_build + "\nD." + mkey + " = " + value + ";"
+                    params_build = params_build + "D." + mkey + " = " + value + ";"
                 else:
-                    params_build = params_build + "\nD." + mkey + " = \"" + value + "\";"
+                    params_build = params_build + "D." + mkey + " = \"" + value + "\";"
             if isinstance(value, int) or isinstance(value, float):
-                params_build = params_build + "\nD." + mkey + " = " + str(value) + ";"
+                params_build = params_build + "D." + mkey + " = " + str(value) + ";"
             if isinstance(value, idprop.types.IDPropertyArray):
                 if len(value) > 0:
                     if isinstance(value[0], float):
                         if len(value) == 2:
-                            params_build = params_build + "\nD." + mkey + " = Vector(" + str(value[0]) + "," + str(value[1]) + ");"
+                            params_build = params_build + "D." + mkey + " = Vector(" + str(value[0]) + "," + str(value[1]) + ");"
                         if len(value) == 3:
-                            params_build = params_build + "\nD." + mkey + " = Vector(" + str(value[0]) + "," + str(value[1]) + "," + str(value[2]) + ");"
+                            params_build = params_build + "D." + mkey + " = Vector(" + str(value[0]) + "," + str(value[1]) + "," + str(value[2]) + ");"
 
     if len(params_build) > 0:
         extdata_build["params"]=params_build
@@ -379,6 +385,10 @@ def gather_joint_hook(self, gltf2_node, blender_bone, export_settings):
     if blender_bone.bone.muramasa_spring is not None:
         if blender_bone.bone.muramasa_spring.is_set is True:
             flag_build = 0
+            if blender_bone.bone.muramasa_spring.reset is True:
+                flag_build = flag_build | 1 << 0
+            if blender_bone.bone.muramasa_spring.disabled is True:
+                flag_build = flag_build | 1 << 1
             if blender_bone.bone.muramasa_spring.enable_stretch is True:
                 flag_build = flag_build | 1 << 2
             if blender_bone.bone.muramasa_spring.enable_gravity is True:
@@ -436,6 +446,8 @@ def gather_material_hook(self, gltf2_material, blender_material, export_settings
             flag_build = flag_build | (1 << 12)
         extdata_build["material_extra"] = {
             "flags":flag_build,
+            "use_user_blend_mode":blender_material.muramasa_material.use_user_blend_mode,
+            "user_blend_mode":blender_material.muramasa_material.user_blend_mode,
             "shading_rate":blender_material.muramasa_material.shading_rate,
             "tex_anim_dir":[
                 blender_material.muramasa_material.tex_anim_dir[0],
@@ -481,19 +493,51 @@ def gather_mesh_hook(self, gltf2_mesh, blender_mesh, blender_object, vertex_grou
         required=extension_is_required
     )
 
-def gather_animation_hook(self, gltf2_animation, blender_action, blender_object, export_settings):
-    if gltf2_animation.extensions is None:
-        gltf2_animation.extensions = {}
+
+GLTF_EXTENSION_DATA = {
+    "animation_extra":{}
+}
+
+def gather_actions_hook(self, blender_object, params, export_settings):
+    global GLTF_EXTENSION_DATA
+
+    actions_refilter = []
+
+    for blender_action in params.blender_actions:
+        do_export : bool = (GLTF_EXTENSION_DATA["animation_extra"].get(blender_action.name) is None) and (blender_action.muramasa_action is not None)
+        if do_export:
+            do_export = blender_action.muramasa_action.do_export
+        if do_export:
+            animex_flag_build = 0
+            if blender_action.muramasa_action.autoplay is True:
+                animex_flag_build = animex_flag_build | 1 << 0
+            GLTF_EXTENSION_DATA["animation_extra"][blender_action.name] = {
+                "flags":animex_flag_build,
+            }
+            actions_refilter.append(blender_action)
+
+    params.blender_actions = actions_refilter
+    # print(actions_refilter)
+    ''
+
+# Combine all extradata
+def gather_gltf_extensions_hook(self, gltf2_plan, export_settings):
+    global GLTF_EXTENSION_DATA
+
+    if gltf2_plan.extensions is None:
+        gltf2_plan.extensions = {}
     extdata_build = {}
-    # Animation properties, e.g. autoplay opt.
-    if blender_action.muramasa_action is not None:
-        animex_flag_build = 0
-        if blender_action.muramasa_action.autoplay is True:
-            animex_flag_build = animex_flag_build | 1 << 0
-        extdata_build["animation_extra"] = {
-            "flags":animex_flag_build,
-        }
-    gltf2_animation.extensions[glTF_extension_name] = self.Extension(
+
+    # Finalizing all extension data to this compendium or sort
+    for extension_name, extension_data in GLTF_EXTENSION_DATA.items():
+        final_data_build = []
+        for id_str, object_data in extension_data.items():
+            object_data["name"] = id_str
+            final_data_build.append(object_data)
+        extdata_build[extension_name] = final_data_build
+        GLTF_EXTENSION_DATA[extension_name] = {}
+    
+    gltf2_plan.extensions[glTF_extension_name] = self.Extension(
         name=glTF_extension_name,
         extension=extdata_build,
         required=extension_is_required

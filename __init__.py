@@ -1,23 +1,39 @@
 # Muramasa interlink, a plugin to initiate asset workflow for muramasa development kit
 
 import bpy
+from . import gltf_ext_assetsmith
+from . import scenedata
+from . import operator
+from . import ui
 
 bl_info = {
     "name" : "Muramasa Development Kit",
     "author" : "megumumpkin",
-    "blender" : (3,3,0),
+    "blender" : (3,6,1),
     "version" : (0,0,1),
     "location" : "View3D",
     "warning" : "Plugin is still in development",
-    "category" : "MuramasaDK"
+    "category" : "Game Development"
 }
 
-register, unregister = bpy.utils.register_submodule_factory(__package__, (
+# def register():
+#     scenedata.register()
+#     operator.register()
+#     ui.register()
+#     gltf_ext_assetsmith.register()
+
+# def unregister():
+#     gltf_ext_assetsmith.register()
+#     ui.register()
+#     operator.register()
+#     scenedata.register()
+
+register, unregister = bpy.utils.register_submodule_factory(__package__, [
     'gltf_ext_assetsmith',
     'scenedata',
     'operator',
     'ui'
-))
+])
 
 if __name__ == '__main__':
     register()
@@ -72,6 +88,10 @@ class glTF2ExportUserExtension:
         if self.properties.enabled:
             gltf_ext_assetsmith.gather_mesh_hook(self, gltf2_mesh, blender_mesh, blender_object, vertex_groups, modifiers, materials, export_settings)
 
-    def gather_animation_hook(self, gltf2_animation, blender_action, blender_object, export_settings):
+    def gather_actions_hook(self, blender_object, params, export_settings):
         if self.properties.enabled:
-            gltf_ext_assetsmith.gather_animation_hook(self, gltf2_animation, blender_action, blender_object, export_settings)
+            gltf_ext_assetsmith.gather_actions_hook(self, blender_object, params, export_settings)
+
+    def gather_gltf_extensions_hook(self, gltf2_plan, export_settings):
+        if self.properties.enabled:
+            gltf_ext_assetsmith.gather_gltf_extensions_hook(self, gltf2_plan, export_settings)

@@ -1,4 +1,5 @@
 import bpy
+import os
 from bpy.types import Panel
 
 class MURAMASA_INTERLINK_PT_panel(Panel):
@@ -38,6 +39,12 @@ class MURAMASA_INTERLINK_PT_properties_object_panel(Panel):
     bl_context = "object"
     bl_label = "Muramasa Object Data"
     bl_category = "Muramasa Devtool"
+
+    # @classmethod
+    # def poll(cls, context):
+    #     # Get script properties from file
+    #     bpy.ops.muramasa.edit_op_updateobjectvars('EXEC_DEFAULT')
+    #     return True
 
     def draw(self, context):
         layout = self.layout
@@ -116,6 +123,22 @@ class MURAMASA_INTERLINK_PT_properties_object_panel(Panel):
             script_panel.label(text="Script")
             script_panel.prop(bpy.context.object, "muramasa_script", text="Script File")
 
+            var_panel = layout.box()
+            var_panel.label(text="Object Variables")
+            var_panel.operator("muramasa.edit_op_updateobjectvars")
+            for ob_var in bpy.context.object.keys():
+                if("RLPARM" in ob_var):
+                    ob_var_edit = "[\""+ob_var+"\"]"
+                    
+                    vstr = ""
+                    ob_var_split = ob_var.split('_')
+                    for i in range(len(ob_var_split)):
+                        if (i == 0):
+                            continue
+                        vstr = vstr+ob_var_split[i]+" "
+                    
+                    var_panel.prop(bpy.context.object,ob_var_edit,text=vstr)
+
 class MURAMASA_INTERLINK_PT_properties_material_panel(Panel):
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
@@ -134,6 +157,9 @@ class MURAMASA_INTERLINK_PT_properties_material_panel(Panel):
         layout.prop(bpy.context.material.muramasa_material, "shadow_noreceive")
         layout.prop(bpy.context.material.muramasa_material, "outline")
 
+        layout.prop(bpy.context.material.muramasa_material, "use_user_blend_mode")
+        if(bpy.context.material.muramasa_material.use_user_blend_mode is True):
+            layout.prop(bpy.context.material.muramasa_material, "user_blend_mode")
         layout.prop(bpy.context.material.muramasa_material, "shading_rate")
 
         layout.prop(bpy.context.material.muramasa_material, "tex_anim_dir")
@@ -217,9 +243,11 @@ class MURAMASA_INTERLINK_PT_properties_bone_panel(Panel):
     def draw(self, context):
         layout = self.layout
         layout.prop(bpy.context.bone.muramasa_spring, "is_set")
+        spring_panel = layout.box()
+        spring_panel.label(text="Spring Data")
         if bpy.context.bone.muramasa_spring.is_set is True:
-            spring_panel = layout.box()
-            spring_panel.label(text="Spring Data")
+            spring_panel.prop(bpy.context.bone.muramasa_spring, "reset")
+            spring_panel.prop(bpy.context.bone.muramasa_spring, "disabled")
             spring_panel.prop(bpy.context.bone.muramasa_spring, "enable_stretch")
             spring_panel.prop(bpy.context.bone.muramasa_spring, "enable_gravity")
             spring_panel.prop(bpy.context.bone.muramasa_spring, "stiffness_force")
@@ -228,6 +256,10 @@ class MURAMASA_INTERLINK_PT_properties_bone_panel(Panel):
             spring_panel.prop(bpy.context.bone.muramasa_spring, "hit_radius")
             spring_panel.prop(bpy.context.bone.muramasa_spring, "gravity_power")
             spring_panel.prop(bpy.context.bone.muramasa_spring, "gravity_dir")
+        else:
+            spring_panel.label(text="Spring is not enabled")
+        spring_panel.operator("muramasa.edit_op_setspringdatachildren")
+        spring_panel.operator("muramasa.edit_op_setspringdataselected")
 
 class MURAMASA_INTERLINK_PT_properties_anim_panel(Panel):
     bl_space_type = "DOPESHEET_EDITOR"
@@ -240,6 +272,7 @@ class MURAMASA_INTERLINK_PT_properties_anim_panel(Panel):
             layout = self.layout
             action_panel = layout.box()
             action_panel.label(text="Action Data")
+            action_panel.prop(bpy.context.active_action.muramasa_action, "do_export")
             action_panel.prop(bpy.context.active_action.muramasa_action, "autoplay")
 
 classes = (

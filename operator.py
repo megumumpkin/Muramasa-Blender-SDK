@@ -140,7 +140,8 @@ class MURAMASA_INTERLINK_OT_updateasset(Operator):
 
                     # Export animation options for this 
                     export_animations=True,
-                    export_animation_mode='NLA_TRACKS',
+                    export_animation_mode='ACTIONS',
+                    export_optimize_animation_size=True,
                     export_optimize_animation_keep_anim_armature=False,
                     export_optimize_animation_keep_anim_object=False,
 
@@ -223,9 +224,106 @@ class MURAMASA_INTERLINK_OT_previewasset(Operator):
         
         return {'FINISHED'}
 
+def _internal_setspringdatarecursive(bone):
+    for child in bone.children.values():
+        # print(bone.muramasa_spring.items())
+        child.muramasa_spring.is_set = bone.muramasa_spring.is_set
+        child.muramasa_spring.enable_stretch = bone.muramasa_spring.enable_stretch
+        child.muramasa_spring.enable_gravity = bone.muramasa_spring.enable_gravity
+        child.muramasa_spring.stiffness_force = bone.muramasa_spring.stiffness_force
+        child.muramasa_spring.drag_force = bone.muramasa_spring.drag_force
+        child.muramasa_spring.wind_force = bone.muramasa_spring.wind_force
+        child.muramasa_spring.hit_radius = bone.muramasa_spring.hit_radius
+        child.muramasa_spring.gravity_power = bone.muramasa_spring.gravity_power
+        child.muramasa_spring.gravity_dir = bone.muramasa_spring.gravity_dir
+        _internal_setspringdatarecursive(child)
+
+class MURAMASA_EDIT_OT_setspringdatachildren(Operator):
+    bl_idname = "muramasa.edit_op_setspringdatachildren"
+    bl_label = "Apply to All Children"
+    bl_description = "Apply spring properties to all children of this bone"
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        bone = context.armature.bones.active
+        _internal_setspringdatarecursive(bone)
+        
+        return {'FINISHED'}
+
+class MURAMASA_EDIT_OT_setspringdataselected(Operator):
+    bl_idname = "muramasa.edit_op_setspringdataselected"
+    bl_label = "Apply to All Selected Bones"
+    bl_description = "Apply spring properties to all selection of bones in this armature"
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        ref_bone = context.armature.bones.active
+        for bone in context.armature.bones.values():
+            if bone.select is True:
+                bone.muramasa_spring.is_set = ref_bone.muramasa_spring.is_set
+                bone.muramasa_spring.reset = ref_bone.muramasa_spring.reset
+                bone.muramasa_spring.disabled = ref_bone.muramasa_spring.disabled
+                bone.muramasa_spring.enable_stretch = ref_bone.muramasa_spring.enable_stretch
+                bone.muramasa_spring.enable_gravity = ref_bone.muramasa_spring.enable_gravity
+                bone.muramasa_spring.stiffness_force = ref_bone.muramasa_spring.stiffness_force
+                bone.muramasa_spring.drag_force = ref_bone.muramasa_spring.drag_force
+                bone.muramasa_spring.wind_force = ref_bone.muramasa_spring.wind_force
+                bone.muramasa_spring.hit_radius = ref_bone.muramasa_spring.hit_radius
+                bone.muramasa_spring.gravity_power = ref_bone.muramasa_spring.gravity_power
+                bone.muramasa_spring.gravity_dir = ref_bone.muramasa_spring.gravity_dir
+        return {'FINISHED'}
+
+class MURAMASA_EDIT_OT_updateobjectvars(Operator):
+    bl_idname = "muramasa.edit_op_updateobjectvars"
+    bl_label = "Refresh Object Variables"
+    bl_description = "Reload script linting"
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        if bpy.context.object.muramasa_script:
+            print(os.path.abspath(bpy.path.abspath(bpy.context.object.muramasa_script)))
+            with open(os.path.abspath(bpy.path.abspath(bpy.context.object.muramasa_script)), 'r') as file:
+                data = file.read().split('\n')
+                muramasa_part : bool = False
+                for line in data:
+                    part = line.split(' ')
+                    print(part)
+                    if (part[0] != "--"):
+                        break
+
+                    if ((not muramasa_part)):
+                        if (part[1] == "MURAMASA_HINT"):
+                            muramasa_part = True
+                        else:
+                            break
+
+                    if(part[1] == "FLOAT"):
+                        strname = "RLPARM_"+part[2]
+                        if(strname not in bpy.context.object):
+                            bpy.context.object[strname] = 0.0
+                    if(part[1] == "STRING"):
+                        strname = "RLPARM_"+part[2]
+                        if(strname not in bpy.context.object):
+                            bpy.context.object[strname] = ""
+                    ''
+            ''
+        return {'FINISHED'}
+
 classes = (
     MURAMASA_INTERLINK_OT_updateasset,
-    MURAMASA_INTERLINK_OT_previewasset
+    MURAMASA_INTERLINK_OT_previewasset,
+    MURAMASA_EDIT_OT_setspringdatachildren,
+    MURAMASA_EDIT_OT_setspringdataselected,
+    MURAMASA_EDIT_OT_updateobjectvars
 )
 
 def register():

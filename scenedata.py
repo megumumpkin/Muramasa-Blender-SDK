@@ -84,6 +84,19 @@ class MuramasaMaterial(bpy.types.PropertyGroup):
     shadow_noreceive : bpy.props.BoolProperty(name="Don't Receive Shadow", default=False)
     outline : bpy.props.BoolProperty(name="Enable Outline", default=False)
 
+    use_user_blend_mode : bpy.props.BoolProperty(name="Enable Custom Blend Mode", default=False)
+    user_blend_mode : bpy.props.EnumProperty(
+        name="Custom Blend Mode",
+        description = "Set Custom Material Blend Mode",
+        items=[
+            ("BLENDMODE_OPAQUE","BLENDMODE_OPAQUE",""),
+            ("BLENDMODE_ALPHA","BLENDMODE_ALPHA",""),
+            ("BLENDMODE_PREMULTIPLIED","BLENDMODE_PREMULTIPLIED",""),
+            ("BLENDMODE_ADDITIVE","BLENDMODE_ADDITIVE",""),
+            ("BLENDMODE_MULTIPLY","BLENDMODE_MULTIPLY",""),
+        ]
+    )
+
     shading_rate : bpy.props.EnumProperty(
         name="Shading Rate",
         description = "Set pixel fill rate for the material",
@@ -164,6 +177,8 @@ class MuramasaEmitter(bpy.types.PropertyGroup):
 
 class MuramasaSpring(bpy.types.PropertyGroup):
     is_set : bpy.props.BoolProperty(name="Use Spring", default=False)
+    reset : bpy.props.BoolProperty(name="Reset Simulation", default=False)
+    disabled : bpy.props.BoolProperty(name="Disable Simulation", default=False)
     enable_stretch : bpy.props.BoolProperty(name="Enable Stretching", default=False)
     enable_gravity : bpy.props.BoolProperty(name="Enable Gravity", default=True)
     stiffness_force : bpy.props.FloatProperty(name="Stiffness Force", default=0.5)
@@ -179,6 +194,7 @@ class MuramasaLight(bpy.types.PropertyGroup):
     cascade_distances : bpy.props.FloatVectorProperty(name="Shadow Cascade Distances", size=6, default=(8.0,80.0,800.0,0.0,0.0,0.0))
 
 class MuramasaAction(bpy.types.PropertyGroup):
+    do_export : bpy.props.BoolProperty(name="Export This Action", default=True)
     autoplay : bpy.props.BoolProperty(name="Autoplay This Action", default=False)
 
 classes = (
