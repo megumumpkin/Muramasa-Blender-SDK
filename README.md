@@ -6,39 +6,14 @@ Install by downloading this repo as zip and install through Blender's settings.
 
 The name comes from the blades that are made by Senji Muramasa, the wicked blades.
 
-![](res/1.png)
+Under the hood this addon utilizes Blender's internal GLTF import-export addon to accomplish data transmission between Blender and the engine, especially leveraging extensive usage of custom extensions.
 
-## Setup
-
-After installing this addon and you want to create a new level or prefab sets, you first need to set the project root, click the folder icon on the `Project Root:` text box to set the location to the root of WickedEngine-Demo repository folder.
-
-Make sure you've built the software in WickedEngine-Demo repository folder to fully utilize this editor environment like the ones below.
-
-![](res/6.png)
-
-![](res/5.png)
-
-## Prefabbing
-
-The main feature of this add on is to generate prefabs per collection, the collection that'll be prefabbed will be the collection that is attached directly to the scene's collection.
-
-![](res/2.png)
-
-It'll be exported as BLENDNAME_COLLECTIONNAME
-
-![](res/3.png)
-
-If you use MAIN as the name of the collection, it'll be used as the root prefab of the scene, which will have the scene name be exported as BLENDNAME
-
-Not only that, collections will only be exported if you check `Include in Export` in the menu below (in Colleciton tab of Properties Panel).
-
-![](res/4.png)
-
-Checking `Composite to Main Scene` will automatically make this collection as subsection of `MAIN` collection (if exists).
+Though to note: That the resulting GLTF interchange format is NOT intended to be used as a normal GLTF file since the exporter violates various standards of the GLTF format.
 
 ## What are the components that can be exported to the engine?
 
 * Prefabs (Feature that exists within the WickedEngine game demo software)
+* Lua Scripts (Exists in Wicked Engine but custom tailored for use in the game demo software)
 * Rigidbody Physics
 * Softbody Physics
 * Physics Constraints
@@ -48,5 +23,6 @@ Checking `Composite to Main Scene` will automatically make this collection as su
 * Sounds
 * Force Fields
 * Animations (Only what's supported by base GLTF formats for now)
-* Particle Systems
+* Particle Systems (Does not use blender's particle system)
+* Hair Particle Systems (This one uses blender's particle system for hair)
 * Hair Joints

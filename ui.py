@@ -31,6 +31,24 @@ class MURAMASA_INTERLINK_PT_properties_collection_panel(Panel):
         pdata_panel.prop(bpy.context.collection.muramasa_prefab.composite_data, "copy_mode")
         pdata_panel.prop(bpy.context.collection.muramasa_prefab.composite_data, "stream_mode")
         pdata_panel.prop(bpy.context.collection.muramasa_prefab.composite_data, "bound_mul")
+        cmp_panel = layout.box()
+        cmp_panel.label(text="Prefab Tiers")
+        cmp_panel.operator("muramasa.edit_op_addprefabstreamtier")
+        for ob_var in bpy.context.collection.keys():
+            if("MURAMASA_PREFABTIER" in ob_var):
+                ob_var_edit = "[\""+ob_var+"\"]"
+                
+                vstr = ""
+                ob_var_split = ob_var.split('_')
+                for i in range(len(ob_var_split)):
+                    if (i < 2):
+                        continue
+                    vstr = vstr+ob_var_split[i]+" "
+                
+                cmp_panel.prop(bpy.context.collection,ob_var_edit,text=vstr)
+                ''
+            ''
+        ''
             
 
 class MURAMASA_INTERLINK_PT_properties_object_panel(Panel):
@@ -127,13 +145,13 @@ class MURAMASA_INTERLINK_PT_properties_object_panel(Panel):
             var_panel.label(text="Object Variables")
             var_panel.operator("muramasa.edit_op_updateobjectvars")
             for ob_var in bpy.context.object.keys():
-                if("RLPARM" in ob_var):
+                if("MURAMASA_LUAPARAMETER" in ob_var):
                     ob_var_edit = "[\""+ob_var+"\"]"
                     
                     vstr = ""
                     ob_var_split = ob_var.split('_')
                     for i in range(len(ob_var_split)):
-                        if (i == 0):
+                        if (i < 2):
                             continue
                         vstr = vstr+ob_var_split[i]+" "
                     

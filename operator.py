@@ -36,6 +36,14 @@ class MURAMASA_INTERLINK_OT_updateasset(Operator):
                 context_restore = bpy.context.copy()
                 temp_compose_collection = []
 
+                for tier_var in i_collection.keys():
+                    if("MURAMASA_PREFABTIER" in tier_var):
+                        bpy.context.scene[tier_var] = i_collection[tier_var]
+                        ''
+                    ''
+                ''
+                
+
                 # Set active context
                 original_active_collection = bpy.context.view_layer.active_layer_collection
                 bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[i_collection.name]
@@ -307,15 +315,58 @@ class MURAMASA_EDIT_OT_updateobjectvars(Operator):
                             break
 
                     if(part[1] == "FLOAT"):
-                        strname = "RLPARM_"+part[2]
+                        strname = "MURAMASA_LUAPARAMETER_"+part[2]
                         if(strname not in bpy.context.object):
                             bpy.context.object[strname] = 0.0
                     if(part[1] == "STRING"):
-                        strname = "RLPARM_"+part[2]
+                        strname = "MURAMASA_LUAPARAMETER_"+part[2]
                         if(strname not in bpy.context.object):
                             bpy.context.object[strname] = ""
                     ''
             ''
+        return {'FINISHED'}
+
+class MURAMASA_EDIT_OT_addprefabstreamtier(Operator):
+    bl_idname = "muramasa.edit_op_addprefabstreamtier"
+    bl_label = "Add Prefab LOD Tier"
+    bl_description = ""
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        # Check the amount
+        tierID = 0
+        for ob_var in bpy.context.collection.keys():
+            if("PREFABTIER" in ob_var):
+                tierID = tierID + 1
+            ''
+        ''
+        bpy.context.collection["MURAMASA_PREFABTIER_Tier_"+str(tierID)] = ""
+
+        return {'FINISHED'}
+
+class MURAMASA_EDIT_OT_removeprefabstreamtier(Operator):
+    bl_idname = "muramasa.edit_op_removeprefabstreamtier"
+    bl_label = "-"
+    bl_description = ""
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        # Check the amount
+        values = []
+        for ob_var in bpy.context.collection.keys():
+            if("MURAMASA_PREFABTIER" in ob_var):
+                values.append(bpy.context.collection[ob_var])
+            ''
+        ''
+        for i in range(len(values)):
+            bpy.context.collection["MURAMASA_PREFABTIER_Tier_"+str(i)] = values[i]
+
         return {'FINISHED'}
 
 classes = (
@@ -323,7 +374,8 @@ classes = (
     MURAMASA_INTERLINK_OT_previewasset,
     MURAMASA_EDIT_OT_setspringdatachildren,
     MURAMASA_EDIT_OT_setspringdataselected,
-    MURAMASA_EDIT_OT_updateobjectvars
+    MURAMASA_EDIT_OT_updateobjectvars,
+    MURAMASA_EDIT_OT_addprefabstreamtier
 )
 
 def register():

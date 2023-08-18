@@ -350,7 +350,7 @@ def gather_node_hook(self, gltf2_object, blender_object, export_settings):
 
     params_build = ""
     for key, value in blender_object.items():
-        if key[:7] == "RLPARM_":
+        if key[:7] == "MURAMASA_LUAPARAMETER_":
             mkey = key[7:]
             print(type(value))
             if isinstance(value, str):
@@ -495,7 +495,7 @@ def gather_mesh_hook(self, gltf2_mesh, blender_mesh, blender_object, vertex_grou
 
 
 GLTF_EXTENSION_DATA = {
-    "animation_extra":{}
+    "animation_extra":{},
 }
 
 def gather_actions_hook(self, blender_object, params, export_settings):
@@ -527,6 +527,18 @@ def gather_gltf_extensions_hook(self, gltf2_plan, export_settings):
     if gltf2_plan.extensions is None:
         gltf2_plan.extensions = {}
     extdata_build = {}
+
+    # Scene prefab LOD tier data
+    extdata_build["prefab_tiers"] = []
+    prefab_tier_idx = 0
+    for ob_var in bpy.context.scene.keys():
+        if("MURAMASA_PREFABTIER" in ob_var):
+            extdata_build["prefab_tiers"].append(bpy.context.scene[ob_var])
+            del(bpy.context.scene[ob_var])
+            prefab_tier_idx + 1
+            ''
+        ''
+    ''
 
     # Finalizing all extension data to this compendium or sort
     for extension_name, extension_data in GLTF_EXTENSION_DATA.items():

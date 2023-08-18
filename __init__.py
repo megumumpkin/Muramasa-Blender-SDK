@@ -10,7 +10,7 @@ bl_info = {
     "name" : "Muramasa Development Kit",
     "author" : "megumumpkin",
     "blender" : (3,6,1),
-    "version" : (0,0,1),
+    "version" : (2023,0,"alpha"),
     "location" : "View3D",
     "warning" : "Plugin is still in development",
     "category" : "Game Development"
