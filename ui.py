@@ -12,7 +12,15 @@ class MURAMASA_INTERLINK_PT_panel(Panel):
         layout = self.layout
         layout.prop(bpy.context.scene, "muramasa_project_root")
         layout.operator("muramasa.interlink_op_updateasset")
-        layout.operator("muramasa.interlink_op_previewasset")
+        if("muramasa_prefab" in context.collection):
+            if(context.collection.muramasa_prefab.include):
+                layout.label(text="Currently Active Asset: "+context.collection.name)
+                layout.operator("muramasa.interlink_op_updateoneasset")
+                layout.operator("muramasa.interlink_op_previewasset")
+            else:
+                layout.label(text=context.collection.name+" is not included for export, Include?")
+                layout.prop(bpy.context.collection.muramasa_prefab, "include")
+
 
 class MURAMASA_INTERLINK_PT_properties_collection_panel(Panel):
     bl_space_type = "PROPERTIES"

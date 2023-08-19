@@ -1,5 +1,7 @@
 # Muramasa Blender SDK
 
+![](docs/res/header.svg)
+
 A Blender addon for WickedEngine-Demo game development, this turns blender into a game level editor which supports creating common types of components that exists within WickedEngine and this game demo software.
 
 Install by downloading this repo as zip and install through Blender's settings.

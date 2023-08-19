@@ -5,10 +5,176 @@ import subprocess
 import numpy
 from bpy.types import Operator
 
+def ExportCollection(context, i_collection, import_main):
+    file_base = bpy.context.blend_data.filepath
+    project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.muramasa_project_root[2:]))
+    content_root = project_root+"/Data/Content"
+    binary_root = project_root
+    file_base = file_base[:len(file_base)-6]
+
+    exe_name = "./Dev"
+    if(sys.platform == 'win32'):
+        exe_name = "Dev.exe"
+
+    # Prep up
+    defer_import = False
+    context_restore = bpy.context.copy()
+    temp_compose_collection = []
+
+    # Set active context
+    original_active_collection = bpy.context.view_layer.active_layer_collection
+    bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[i_collection.name]
+
+    # 1. Set the file name
+    file_collection = file_base
+    if i_collection.muramasa_prefab.is_main is False:
+        file_collection += "_"+i_collection.name
+    else:
+        import_main = True
+        defer_import = True
+        # Compose other collection to this scene if it has Composite checked as it's node
+        for checkcomp_collection in bpy.context.scene.collection.children:
+            if checkcomp_collection.muramasa_prefab.is_main is False:
+                if checkcomp_collection.muramasa_prefab.include is True:
+                    if checkcomp_collection.muramasa_prefab.composite is True:
+                        print("COMPOSITE>"+checkcomp_collection.name)
+
+                        comp_object = bpy.data.objects.new(name="RLCOMPOSITE_"+checkcomp_collection.name, object_data=None)
+                        comp_object["muramasa_temp_instance_collection"] = checkcomp_collection
+                        comp_object.muramasa_prefab_instance.override = checkcomp_collection.muramasa_prefab.composite_data.override
+                        comp_object.muramasa_prefab_instance.copy_mode = checkcomp_collection.muramasa_prefab.composite_data.copy_mode
+                        comp_object.muramasa_prefab_instance.stream_mode = checkcomp_collection.muramasa_prefab.composite_data.stream_mode
+                        comp_object.muramasa_prefab_instance.bound_mul = checkcomp_collection.muramasa_prefab.composite_data.bound_mul
+
+                        bpy.context.view_layer.active_layer_collection.collection.objects.link(comp_object)
+                        temp_compose_collection.append(comp_object)
+
+    file_collection = file_collection+".assetsmith"
+    if not os.path.exists(file_collection):
+        os.mkdir(file_collection)
+    
+    for tier_var in i_collection.keys():
+        if("MURAMASA_PREFABTIER" in tier_var):
+            bpy.context.scene[tier_var] = i_collection[tier_var]
+            ''
+        ''
+    ''
+    
+    # 2. Select which object to be exported (on the main context), cannot use context override, because the GLTF addon does not support that
+    print("Exporting> "+file_collection)
+    # Fix visibility
+    visibility_restore_list = []
+    for sub_collection in i_collection.children_recursive:
+        if sub_collection.hide_viewport is True:
+            visibility_restore_list.append(sub_collection)
+            sub_collection.hide_viewport = False
+    # Select object and setup prefab instance
+    for i_object in bpy.data.objects:
+        i_object.select_set(False)
+    prefab_instance_restore_list = []
+    for i_object in i_collection.all_objects:
+        # 2b. If object is a collection instance, do swap the instance type to none from collection!
+        if i_object.instance_collection is not None:
+            prefab_instance_restore_list.append({"object" : i_object, "instance_collection" : i_object.instance_collection})
+            i_object.instance_type = 'NONE'
+            i_object["muramasa_temp_instance_collection"] = i_object.instance_collection
+            i_object.instance_collection = None
+
+        # 2c. Check if object is a mesh and then check if it has specific vertex groups
+        if i_object.data is not None:
+            if isinstance(i_object.data, bpy.types.Mesh):
+                for vg in i_object.vertex_groups:
+                    # print(weights)
+                    # Pass vertex group VG_SOFTBODY to attribute SOFTBODY
+                    if vg.name == "VG_SOFTBODY":
+                        if 'SOFTBODY' in i_object.data.attributes:
+                            i_object.data.attributes.remove(i_object.data.attributes['SOFTBODY'])
+                        i_object.data.attributes.new(name='SOFTBODY', type='FLOAT', domain='POINT')
+                        data_work = numpy.array(numpy.zeros(len(i_object.data.vertices), dtype=numpy.float32))
+                        for vtp_i in range(len(i_object.data.vertices)):
+                            data_work[vtp_i] = 1.0+(vg.weight(vtp_i)*-1.0)
+                        i_object.data.attributes['SOFTBODY'].data.foreach_set('value',data_work)
+
+                    # Pass vertex group VG_WIND to attribute WIND
+                    if vg.name == "VG_WIND":
+                        if 'WIND' in i_object.data.attributes:
+                            i_object.data.attributes.remove(i_object.data.attributes['WIND'])
+                        i_object.data.attributes.new(name='WIND', type='FLOAT', domain='POINT')
+                        data_work = numpy.array(numpy.zeros(len(i_object.data.vertices), dtype=numpy.float32))
+                        for vtp_i in range(len(i_object.data.vertices)):
+                            data_work[vtp_i] = vg.weight(vtp_i)
+                        i_object.data.attributes['WIND'].data.foreach_set('value',data_work)
+
+                # Pass vertex group for hairparticles to attribute HAIRPARTICLE_entityname
+                for pfx in i_object.particle_systems:
+                    if pfx.settings.type == 'HAIR':
+                        if pfx.vertex_group_length != "":
+                            vg = i_object.vertex_groups[pfx.vertex_group_length]
+                            attrname = 'HAIRVGL_'+i_object.name+"_"+pfx.name
+                            if attrname in i_object.data.attributes:
+                                i_object.data.attributes.remove(i_object.data.attributes[attrname])
+                            i_object.data.attributes.new(name=attrname, type='FLOAT', domain='POINT')
+                            data_work = numpy.array(numpy.zeros(len(i_object.data.vertices), dtype=numpy.float32))
+                            for vtp_i in range(len(i_object.data.vertices)):
+                                data_work[vtp_i] = 1.0+(vg.weight(vtp_i)*-1.0)
+                            i_object.data.attributes[attrname].data.foreach_set('value',data_work)
+        
+        i_object.select_set(True)
+        print(i_object.name)
+        
+    # 3. Export GLTF
+    # Use the one that keeps textures in place, which will export binary separately too, sadly
+    # You don't need to worry, I have tested this and it works, the only thing you need is to just believe me :3
+    bpy.ops.export_scene.gltf(
+        filepath=file_collection+"/model.gltf",
+        export_format='GLTF_SEPARATE',
+        export_keep_originals=True,
+        use_selection=True,
+
+        # Export animation options for this 
+        export_animations=True,
+        export_animation_mode='ACTIONS',
+        export_optimize_animation_size=True,
+        export_optimize_animation_keep_anim_armature=False,
+        export_optimize_animation_keep_anim_object=False,
+
+        export_skins=True,
+        export_morph=True,
+        export_lights=True,
+        export_attributes=True,
+        export_cameras=True,
+        export_apply=True
+    )
+
+    # 4. Restore scene data
+    for i_object in bpy.data.objects:
+        i_object.select_set(False)
+    for i_object in context_restore['selected_objects']:
+        i_object.select_set(True)
+    for i_list in prefab_instance_restore_list:
+        i_list["object"].instance_type = 'COLLECTION'
+        i_list["object"].instance_collection = i_list["instance_collection"]
+        del i_list["object"]["muramasa_temp_instance_collection"]
+    for sub_collection in visibility_restore_list:
+        sub_collection.hide_viewport = True
+    for comp_object in temp_compose_collection:
+        bpy.data.objects.remove(comp_object, do_unlink=True, do_id_user=True, do_ui_user=True)
+    bpy.context.view_layer.active_layer_collection = original_active_collection
+    
+
+    # 5. Execute import to engine, wait for completion
+    if defer_import is not True:
+        subprocess.run(
+            [exe_name,"-t","SCENE_IMPORT","-i",os.path.relpath(file_collection, content_root)],
+            cwd=binary_root
+        )
+
+    return import_main
+
 class MURAMASA_INTERLINK_OT_updateasset(Operator):
     bl_idname = "muramasa.interlink_op_updateasset"
-    bl_label = "Update Asset"
-    bl_description = "Update asset to engine"
+    bl_label = "Update All Assets"
+    bl_description = "Update all exportable assets to engine"
 
     @classmethod
     def poll(cls, context):
@@ -31,158 +197,72 @@ class MURAMASA_INTERLINK_OT_updateasset(Operator):
 
         for i_collection in bpy.context.scene.collection.children:
             if i_collection.muramasa_prefab.include is True:
-                # Prep up
-                defer_import = False
-                context_restore = bpy.context.copy()
-                temp_compose_collection = []
+                import_main = ExportCollection(context, i_collection, import_main)
 
-                for tier_var in i_collection.keys():
-                    if("MURAMASA_PREFABTIER" in tier_var):
-                        bpy.context.scene[tier_var] = i_collection[tier_var]
-                        ''
-                    ''
-                ''
+        if import_main is True:
+            subprocess.run(
+                [exe_name,"-t","SCENE_IMPORT","-i",os.path.relpath(file_base+".assetsmith", content_root)],
+                cwd=binary_root
+            )
                 
+        print("MURAMASA ASSET EXPORT END")
+        print("")
+        return {'FINISHED'}
 
-                # Set active context
-                original_active_collection = bpy.context.view_layer.active_layer_collection
-                bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[i_collection.name]
+class MURAMASA_INTERLINK_OT_updateoneasset(Operator):
+    bl_idname = "muramasa.interlink_op_updateoneasset"
+    bl_label = "Update Current Asset"
+    bl_description = "Update current asset to engine"
 
-                # 1. Set the file name
-                file_collection = file_base
-                if i_collection.muramasa_prefab.is_main is False:
-                    file_collection += "_"+i_collection.name
-                else:
-                    import_main = True
-                    defer_import = True
-                    # Compose other collection to this scene if it has Composite checked as it's node
-                    for checkcomp_collection in bpy.context.scene.collection.children:
-                        if checkcomp_collection.muramasa_prefab.is_main is False:
-                            if checkcomp_collection.muramasa_prefab.include is True:
-                                if checkcomp_collection.muramasa_prefab.composite is True:
-                                    print("COMPOSITE>"+checkcomp_collection.name)
+    @classmethod
+    def poll(cls, context):
+        return True
 
-                                    comp_object = bpy.data.objects.new(name="RLCOMPOSITE_"+checkcomp_collection.name, object_data=None)
-                                    comp_object["muramasa_temp_instance_collection"] = checkcomp_collection
-                                    comp_object.muramasa_prefab_instance.override = checkcomp_collection.muramasa_prefab.composite_data.override
-                                    comp_object.muramasa_prefab_instance.copy_mode = checkcomp_collection.muramasa_prefab.composite_data.copy_mode
-                                    comp_object.muramasa_prefab_instance.stream_mode = checkcomp_collection.muramasa_prefab.composite_data.stream_mode
-                                    comp_object.muramasa_prefab_instance.bound_mul = checkcomp_collection.muramasa_prefab.composite_data.bound_mul
+    def execute(self, context):
+        print("MURAMASA ASSET EXPORT START")
+        
+        file_base = bpy.context.blend_data.filepath
+        project_root = os.path.abspath(os.path.join(os.path.dirname(file_base), bpy.context.scene.muramasa_project_root[2:]))
+        content_root = project_root+"/Data/Content"
+        binary_root = project_root
+        file_base = file_base[:len(file_base)-6]
 
-                                    bpy.context.view_layer.active_layer_collection.collection.objects.link(comp_object)
-                                    temp_compose_collection.append(comp_object)
-                file_collection = file_collection+".assetsmith"
-                if not os.path.exists(file_collection):
-                    os.mkdir(file_collection)
-                
-                # 2. Select which object to be exported (on the main context), cannot use context override, because the GLTF addon does not support that
-                print("Exporting> "+file_collection)
-                # Fix visibility
-                visibility_restore_list = []
-                for sub_collection in i_collection.children_recursive:
-                    if sub_collection.hide_viewport is True:
-                        visibility_restore_list.append(sub_collection)
-                        sub_collection.hide_viewport = False
-                # Select object and setup prefab instance
-                for i_object in bpy.data.objects:
-                    i_object.select_set(False)
-                prefab_instance_restore_list = []
-                for i_object in i_collection.all_objects:
-                    # 2b. If object is a collection instance, do swap the instance type to none from collection!
-                    if i_object.instance_collection is not None:
-                        prefab_instance_restore_list.append({"object" : i_object, "instance_collection" : i_object.instance_collection})
-                        i_object.instance_type = 'NONE'
-                        i_object["muramasa_temp_instance_collection"] = i_object.instance_collection
-                        i_object.instance_collection = None
+        import_main = False
 
-                    # 2c. Check if object is a mesh and then check if it has specific vertex groups
-                    if i_object.data is not None:
-                        if isinstance(i_object.data, bpy.types.Mesh):
-                            for vg in i_object.vertex_groups:
-                                # print(weights)
-                                # Pass vertex group VG_SOFTBODY to attribute SOFTBODY
-                                if vg.name == "VG_SOFTBODY":
-                                    if 'SOFTBODY' in i_object.data.attributes:
-                                        i_object.data.attributes.remove(i_object.data.attributes['SOFTBODY'])
-                                    i_object.data.attributes.new(name='SOFTBODY', type='FLOAT', domain='POINT')
-                                    data_work = numpy.array(numpy.zeros(len(i_object.data.vertices), dtype=numpy.float32))
-                                    for vtp_i in range(len(i_object.data.vertices)):
-                                        data_work[vtp_i] = 1.0+(vg.weight(vtp_i)*-1.0)
-                                    i_object.data.attributes['SOFTBODY'].data.foreach_set('value',data_work)
+        exe_name = "./Dev"
+        if(sys.platform == 'win32'):
+            exe_name = "Dev.exe"
 
-                                # Pass vertex group VG_WIND to attribute WIND
-                                if vg.name == "VG_WIND":
-                                    if 'WIND' in i_object.data.attributes:
-                                        i_object.data.attributes.remove(i_object.data.attributes['WIND'])
-                                    i_object.data.attributes.new(name='WIND', type='FLOAT', domain='POINT')
-                                    data_work = numpy.array(numpy.zeros(len(i_object.data.vertices), dtype=numpy.float32))
-                                    for vtp_i in range(len(i_object.data.vertices)):
-                                        data_work[vtp_i] = vg.weight(vtp_i)
-                                    i_object.data.attributes['WIND'].data.foreach_set('value',data_work)
+        i_collection = bpy.context.collection
 
-                            # Pass vertex group for hairparticles to attribute HAIRPARTICLE_entityname
-                            for pfx in i_object.particle_systems:
-                                if pfx.settings.type == 'HAIR':
-                                    if pfx.vertex_group_length != "":
-                                        vg = i_object.vertex_groups[pfx.vertex_group_length]
-                                        attrname = 'HAIRVGL_'+i_object.name+"_"+pfx.name
-                                        if attrname in i_object.data.attributes:
-                                            i_object.data.attributes.remove(i_object.data.attributes[attrname])
-                                        i_object.data.attributes.new(name=attrname, type='FLOAT', domain='POINT')
-                                        data_work = numpy.array(numpy.zeros(len(i_object.data.vertices), dtype=numpy.float32))
-                                        for vtp_i in range(len(i_object.data.vertices)):
-                                            data_work[vtp_i] = 1.0+(vg.weight(vtp_i)*-1.0)
-                                        i_object.data.attributes[attrname].data.foreach_set('value',data_work)
-                    
-                    i_object.select_set(True)
-                    print(i_object.name)
-                    
-                # 3. Export GLTF
-                # Use the one that keeps textures in place, which will export binary separately too, sadly
-                # You don't need to worry, I have tested this and it works, the only thing you need is to just believe me :3
-                bpy.ops.export_scene.gltf(
-                    filepath=file_collection+"/model.gltf",
-                    export_format='GLTF_SEPARATE',
-                    export_keep_originals=True,
-                    use_selection=True,
+        # 1. Set the file name
+        file_collection = file_base
+        if i_collection.muramasa_prefab.is_main is False:
+            file_collection += "_"+i_collection.name
+        else:
+            import_main = True
+            defer_import = True
+            # Compose other collection to this scene if it has Composite checked as it's node
+            for checkcomp_collection in bpy.context.scene.collection.children:
+                if checkcomp_collection.muramasa_prefab.is_main is False:
+                    if checkcomp_collection.muramasa_prefab.include is True:
+                        if checkcomp_collection.muramasa_prefab.composite is True:
+                            print("COMPOSITE>"+checkcomp_collection.name)
 
-                    # Export animation options for this 
-                    export_animations=True,
-                    export_animation_mode='ACTIONS',
-                    export_optimize_animation_size=True,
-                    export_optimize_animation_keep_anim_armature=False,
-                    export_optimize_animation_keep_anim_object=False,
+                            comp_object = bpy.data.objects.new(name="RLCOMPOSITE_"+checkcomp_collection.name, object_data=None)
+                            comp_object["muramasa_temp_instance_collection"] = checkcomp_collection
+                            comp_object.muramasa_prefab_instance.override = checkcomp_collection.muramasa_prefab.composite_data.override
+                            comp_object.muramasa_prefab_instance.copy_mode = checkcomp_collection.muramasa_prefab.composite_data.copy_mode
+                            comp_object.muramasa_prefab_instance.stream_mode = checkcomp_collection.muramasa_prefab.composite_data.stream_mode
+                            comp_object.muramasa_prefab_instance.bound_mul = checkcomp_collection.muramasa_prefab.composite_data.bound_mul
 
-                    export_skins=True,
-                    export_morph=True,
-                    export_lights=True,
-                    export_attributes=True,
-                    export_cameras=True,
-                    export_apply=True
-                )
+                            bpy.context.view_layer.active_layer_collection.collection.objects.link(comp_object)
+                            temp_compose_collection.append(comp_object)
+        file_collection = file_collection+".assetsmith"
 
-                # 4. Restore scene data
-                for i_object in bpy.data.objects:
-                    i_object.select_set(False)
-                for i_object in context_restore['selected_objects']:
-                    i_object.select_set(True)
-                for i_list in prefab_instance_restore_list:
-                    i_list["object"].instance_type = 'COLLECTION'
-                    i_list["object"].instance_collection = i_list["instance_collection"]
-                    del i_list["object"]["muramasa_temp_instance_collection"]
-                for sub_collection in visibility_restore_list:
-                    sub_collection.hide_viewport = True
-                for comp_object in temp_compose_collection:
-                    bpy.data.objects.remove(comp_object, do_unlink=True, do_id_user=True, do_ui_user=True)
-                bpy.context.view_layer.active_layer_collection = original_active_collection
-                
-
-                # 5. Execute import to engine, wait for completion
-                if defer_import is not True:
-                    subprocess.run(
-                        [exe_name,"-t","SCENE_IMPORT","-i",os.path.relpath(file_collection, content_root)],
-                        cwd=binary_root
-                    )
+        if not os.path.exists(file_collection):
+            os.mkdir(file_collection)
+        import_main = ExportCollection(context, i_collection, import_main)
 
         if import_main is True:
             subprocess.run(
@@ -196,7 +276,7 @@ class MURAMASA_INTERLINK_OT_updateasset(Operator):
 
 class MURAMASA_INTERLINK_OT_previewasset(Operator):
     bl_idname = "muramasa.interlink_op_previewasset"
-    bl_label = "Preview Asset"
+    bl_label = "Preview Active Asset"
     bl_description = "Preview asset by running the engine"
 
     @classmethod
@@ -371,6 +451,7 @@ class MURAMASA_EDIT_OT_removeprefabstreamtier(Operator):
 
 classes = (
     MURAMASA_INTERLINK_OT_updateasset,
+    MURAMASA_INTERLINK_OT_updateoneasset,
     MURAMASA_INTERLINK_OT_previewasset,
     MURAMASA_EDIT_OT_setspringdatachildren,
     MURAMASA_EDIT_OT_setspringdataselected,
