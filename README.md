@@ -2,7 +2,10 @@
 
 ![](docs/res/header.svg)
 
+###### Blender and it's logo are all owned by Blender Foundation. Box Icon and Left Caret Icon all rights reserved to Font Awesome. Wicked Engine and it's logo all rights reserved to Turanski Janos
 A Blender addon for WickedEngine-Demo game development, this turns blender into a game level editor which supports creating common types of components that exists within WickedEngine and this game demo software.
+
+- # [Read the usage manual](https://github.com/megumumpkin/Muramasa-Blender-SDK/wiki/Setup)
 
 Install by downloading this repo as zip and install through Blender's settings.
 
